@@ -16,6 +16,8 @@ public:
     static void drawCube(float size, bool solid = true);
     static void drawSphere(float radius, int slices, int stacks, bool solid = true);
     static void drawTeapot(float size, bool solid = true);
+    // Proceduralny walec (fallback zamiast GLU)
+    static void drawCylinder(float radius, float height, int slices = 24, bool solid = true);
 };
 
 // Zaimplementowana klasa silnika (Zadanie 6)
@@ -41,6 +43,27 @@ private:
     // Tablica stanów klawiatury
     bool keys[256];
 
+    // Stan myszy i kamery do prostego orbitowania
+    bool mouseLeftDown;
+    int lastMouseX;
+    int lastMouseY;
+
+    // Kamera (orbit): target + spherical coords
+    glm::vec3 camTarget; // punkt na który patrzymy
+    float camYaw;   // obrót wokół osi Y (radiany)
+    float camPitch; // obrót góra/dół (radiany)
+    float camDistance; // odległość od targetu
+
+    // Aktualnie rysowany prymityw
+    enum class PrimitiveType { CUBE, CYLINDER } currentPrimitive;
+    // Tryb rysowania (solid / wireframe)
+    bool wireframeMode;
+
+    // Licznik FPS
+    int frameCount;
+    float fpsValue;
+    int lastFPSTime;
+
     // Prywatne metody obsługi wywoływane przez callbacki
     void render();
     void resize(int width, int height);
@@ -49,7 +72,15 @@ private:
     void handleMouseMotion(int x, int y);
     void onTimer();
 
+    
+
 public:
+    // Getter/Setter dla targetFPS (publiczne)
+    void setTargetFPS(int fps);
+    int getTargetFPS() const;
+
+    // Przełącznik trybu rysowania solid/wireframe
+    void toggleWireframe();
     Engine();
     ~Engine();
 
