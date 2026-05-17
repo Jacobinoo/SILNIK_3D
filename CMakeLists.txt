@@ -22,6 +22,11 @@ find_package(OpenGL REQUIRED)
 set(SOURCES 
     main.cpp 
     Engine.cpp
+    Math3D.cpp
+    SceneNode.cpp
+    Camera.cpp
+    Light.cpp
+    PrimitiveNode.cpp
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})

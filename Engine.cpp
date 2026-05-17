@@ -1,122 +1,55 @@
 #include "Engine.h"
-#include <iostream>
-#include <cmath>
 #include <algorithm>
+#include <cmath>
+#include <cstdlib>
+#include <iostream>
 
-// Inicjalizacja statycznego wskaźnika
 Engine* Engine::instance = nullptr;
 
-
-void Primitive::drawCube(float size, bool solid) {
-    if (solid) glutSolidCube(size);
-    else glutWireCube(size);
+namespace {
+float degreesToRadians(float degrees) {
+    return degrees * 3.14159265358979323846f / 180.0f;
+}
 }
 
-void Primitive::drawSphere(float radius, int slices, int stacks, bool solid) {
-    if (solid) glutSolidSphere(radius, slices, stacks);
-    else glutWireSphere(radius, slices, stacks);
-}
-
-void Primitive::drawTeapot(float size, bool solid) {
-    if (solid) glutSolidTeapot(size);
-    else glutWireTeapot(size);
-}
-
-void Primitive::drawCylinder(float radius, float height, int slices, bool solid) {
-    // Proceduralny walec: srodek na 0, wysokość w osi Y od -height/2 do +height/2
-    const float halfH = height * 0.5f;
-    const float TWO_PI = 2.0f * 3.14159265358979323846f;
-
-    if (solid) {
-        // Boki (triangle strip)
-        glBegin(GL_TRIANGLE_STRIP);
-        for (int i = 0; i <= slices; ++i) {
-            float t = (float)i / (float)slices;
-            float ang = t * TWO_PI;
-            float x = cosf(ang) * radius;
-            float z = sinf(ang) * radius;
-            // normal
-            glNormal3f(x, 0.0f, z);
-            // górny wierzchołek
-            glVertex3f(x, halfH, z);
-            // dolny wierzchołek
-            glVertex3f(x, -halfH, z);
-        }
-        glEnd();
-
-        // Górna pokrywa
-        glBegin(GL_TRIANGLE_FAN);
-        glNormal3f(0.0f, 1.0f, 0.0f);
-        glVertex3f(0.0f, halfH, 0.0f);
-        for (int i = 0; i <= slices; ++i) {
-            float t = (float)i / (float)slices;
-            float ang = t * TWO_PI;
-            float x = cosf(ang) * radius;
-            float z = sinf(ang) * radius;
-            glVertex3f(x, halfH, z);
-        }
-        glEnd();
-
-        // Dolna pokrywa
-        glBegin(GL_TRIANGLE_FAN);
-        glNormal3f(0.0f, -1.0f, 0.0f);
-        glVertex3f(0.0f, -halfH, 0.0f);
-        for (int i = 0; i <= slices; ++i) {
-            float t = (float)i / (float)slices;
-            float ang = -t * TWO_PI; // odwrotne kolejność dla normaly
-            float x = cosf(ang) * radius;
-            float z = sinf(ang) * radius;
-            glVertex3f(x, -halfH, z);
-        }
-        glEnd();
-    } else {
-        // Wireframe: obwód i linie pionowe
-        // obwód górny
-        glBegin(GL_LINE_LOOP);
-        for (int i = 0; i < slices; ++i) {
-            float t = (float)i / (float)slices;
-            float ang = t * TWO_PI;
-            float x = cosf(ang) * radius;
-            float z = sinf(ang) * radius;
-            glVertex3f(x, halfH, z);
-        }
-        glEnd();
-
-        // obwód dolny
-        glBegin(GL_LINE_LOOP);
-        for (int i = 0; i < slices; ++i) {
-            float t = (float)i / (float)slices;
-            float ang = t * TWO_PI;
-            float x = cosf(ang) * radius;
-            float z = sinf(ang) * radius;
-            glVertex3f(x, -halfH, z);
-        }
-        glEnd();
-
-        // linie pionowe
-        glBegin(GL_LINES);
-        for (int i = 0; i < slices; ++i) {
-            float t = (float)i / (float)slices;
-            float ang = t * TWO_PI;
-            float x = cosf(ang) * radius;
-            float z = sinf(ang) * radius;
-            glVertex3f(x, -halfH, z);
-            glVertex3f(x, halfH, z);
-        }
-        glEnd();
-    }
-}
-
-
-Engine::Engine() : windowWidth(800), windowHeight(600), isFullscreen(false), 
-                   targetFPS(60), enableDepthBuffer(true), enableDoubleBuffer(true),
-                   currentProjection(ProjectionType::PERSPECTIVE),
-                   mouseLeftDown(false), lastMouseX(0), lastMouseY(0),
-                   camTarget(0.0f, 0.0f, 0.0f), camYaw(0.0f), camPitch(0.0f), camDistance(5.0f),
-                   currentPrimitive(PrimitiveType::CUBE), wireframeMode(false),
-                   frameCount(0), fpsValue(0.0f), lastFPSTime(0) {
+Engine::Engine()
+    : windowWidth(800), windowHeight(600), isFullscreen(false),
+      targetFPS(60), enableDepthBuffer(true), enableDoubleBuffer(true),
+      currentProjection(ProjectionType::PERSPECTIVE),
+      mouseLeftDown(false), lastMouseX(0), lastMouseY(0),
+      cameraTarget(0.0f, 0.0f, 0.0f), cameraYaw(0.0f), cameraPitch(0.0f), cameraDistance(5.0f),
+      sceneRoot(std::make_shared<SceneNode>("Root")),
+      observer(std::make_shared<Camera>()),
+      pointLight(std::make_shared<PointLight>()),
+      cube(std::make_shared<CubeNode>(1.0f)),
+      cylinder(std::make_shared<CylinderNode>(0.7f, 2.0f, 36)),
+      wireframeMode(false), frameCount(0), fpsValue(0.0f), lastFPSTime(0) {
     instance = this;
-    for (int i = 0; i < 256; ++i) keys[i] = false;
+
+    for (int i = 0; i < 256; ++i) {
+        keys[i] = false;
+    }
+
+    observer->setTarget(cameraTarget);
+    observer->setOrbit(cameraYaw, cameraPitch, cameraDistance);
+    observer->setProjectionPerspective(60.0f, static_cast<float>(windowWidth) / static_cast<float>(windowHeight), 1.0f, 100.0f);
+
+    cube->setPosition(Vec3(-1.5f, 0.0f, 0.0f));
+    cube->setMaterial(Material(Vec3(0.18f, 0.08f, 0.03f), Vec3(0.80f, 0.45f, 0.15f), Vec3(0.90f, 0.90f, 0.90f), 32.0f));
+
+    cylinder->setPosition(Vec3(1.5f, 0.0f, 0.0f));
+    cylinder->setMaterial(Material(Vec3(0.05f, 0.12f, 0.20f), Vec3(0.20f, 0.60f, 0.90f), Vec3(0.95f, 0.95f, 0.95f), 48.0f));
+
+    pointLight->setPosition(Vec3(2.5f, 3.5f, 4.0f));
+    pointLight->setAmbient(Vec3(0.15f, 0.15f, 0.15f));
+    pointLight->setDiffuse(Vec3(1.0f, 1.0f, 1.0f));
+    pointLight->setSpecular(Vec3(1.0f, 1.0f, 1.0f));
+    pointLight->setAttenuation(1.0f, 0.09f, 0.032f);
+    pointLight->setLightIndex(0);
+
+    sceneRoot->addChild(pointLight);
+    sceneRoot->addChild(cube);
+    sceneRoot->addChild(cylinder);
 }
 
 Engine::~Engine() {
@@ -124,7 +57,6 @@ Engine::~Engine() {
 }
 
 void Engine::init(int argc, char** argv) {
-    // Inicjacja biblioteki odpowiedzialnej za system okienkowy
     glutInit(&argc, argv);
 }
 
@@ -133,6 +65,7 @@ void Engine::setWindowParams(int width, int height, const std::string& title, bo
     windowHeight = height;
     windowTitle = title;
     isFullscreen = fullscreen;
+    updateProjection();
 }
 
 void Engine::setGraphicsParams(int fps, bool depth, bool doubleBuffering) {
@@ -140,11 +73,14 @@ void Engine::setGraphicsParams(int fps, bool depth, bool doubleBuffering) {
     enableDepthBuffer = depth;
     enableDoubleBuffer = doubleBuffering;
 
-    // Parametryzowanie buforów
     unsigned int displayMode = GLUT_RGBA;
-    if (enableDoubleBuffer) displayMode |= GLUT_DOUBLE;
-    if (enableDepthBuffer) displayMode |= GLUT_DEPTH;
-    
+    if (enableDoubleBuffer) {
+        displayMode |= GLUT_DOUBLE;
+    }
+    if (enableDepthBuffer) {
+        displayMode |= GLUT_DEPTH;
+    }
+
     glutInitDisplayMode(displayMode);
     glutInitWindowSize(windowWidth, windowHeight);
     glutCreateWindow(windowTitle.c_str());
@@ -157,17 +93,22 @@ void Engine::setGraphicsParams(int fps, bool depth, bool doubleBuffering) {
         glEnable(GL_DEPTH_TEST);
     }
 
-    // Rejestracja obsługi wejścia i wyświetlania
+    glEnable(GL_LIGHTING);
+    glEnable(GL_NORMALIZE);
+    glShadeModel(GL_SMOOTH);
+    glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_TRUE);
+
+    GLfloat globalAmbient[4] = { 0.18f, 0.18f, 0.18f, 1.0f };
+    glLightModelfv(GL_LIGHT_MODEL_AMBIENT, globalAmbient);
+
     glutDisplayFunc(displayCallback);
     glutReshapeFunc(reshapeCallback);
     glutKeyboardFunc(keyboardDownCallback);
     glutKeyboardUpFunc(keyboardUpCallback);
     glutMouseFunc(mouseCallback);
     glutPassiveMotionFunc(motionCallback);
-    glutMotionFunc(motionCallback); // aktywne przesuwanie myszy (z przyciskiem wciśniętym)
-    
-    // Główna pętla gry korzystająca z czasomierza
-    // Zainicjuj licznik FPS
+    glutMotionFunc(motionCallback);
+
     lastFPSTime = glutGet(GLUT_ELAPSED_TIME);
     frameCount = 0;
     fpsValue = 0.0f;
@@ -181,97 +122,94 @@ void Engine::setClearColor(float r, float g, float b, float a) {
 
 void Engine::setProjection(ProjectionType type) {
     currentProjection = type;
-    // Wymuszenie przeliczenia macierzy przy zmianie
-    resize(windowWidth, windowHeight); 
+    updateProjection();
 }
 
 void Engine::run() {
-    glutMainLoop(); // Start pętli
+    glutMainLoop();
 }
 
 void Engine::shutdown() {
-    // Deinicjacja i sprzątanie pamięci
     std::cout << "Zamykanie silnika..." << std::endl;
-    // Starsze wersje OpenGL mogą tu wymagać glutLeaveMainLoop(), a my używamy exit() pod ESC
+}
+
+void Engine::configureLightingState() const {
+    glEnable(GL_LIGHTING);
+    glEnable(GL_NORMALIZE);
+    glShadeModel(GL_SMOOTH);
+    glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_TRUE);
+}
+
+void Engine::updateProjection() {
+    if (!observer) {
+        return;
+    }
+
+    float aspect = windowHeight == 0 ? 1.0f : static_cast<float>(windowWidth) / static_cast<float>(windowHeight);
+    if (currentProjection == ProjectionType::PERSPECTIVE) {
+        observer->setProjectionPerspective(60.0f, aspect, 1.0f, 100.0f);
+    } else {
+        observer->setProjectionOrthographic(-10.0f * aspect, 10.0f * aspect, -10.0f, 10.0f, 1.0f, 100.0f);
+    }
 }
 
 void Engine::render() {
-    // Obsługa czyszczenia ekranu do zadanego koloru i czyszczenie bufora głębi
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    
-    // Aplikowanie macierzy rzutowania wyliczonej przez bibliotekę GLM
+    configureLightingState();
+
     glMatrixMode(GL_PROJECTION);
-    glLoadMatrixf(glm::value_ptr(projectionMatrix));
-    
-    // Resetowanie macierzy widoku/modelu
+    glLoadMatrixf(observer->projectionMatrix().data());
+
     glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
+    glLoadMatrixf(observer->viewMatrix().data());
 
-    // Wyliczenie pozycji kamery w koordynatach sferycznych względem camTarget
-    float cx = camTarget.x + camDistance * cosf(camPitch) * sinf(camYaw);
-    float cy = camTarget.y + camDistance * sinf(camPitch);
-    float cz = camTarget.z + camDistance * cosf(camPitch) * cosf(camYaw);
+    glPolygonMode(GL_FRONT_AND_BACK, wireframeMode ? GL_LINE : GL_FILL);
 
-    glm::vec3 eye(cx, cy, cz);
-    glm::vec3 center = camTarget;
-    glm::vec3 up(0.0f, 1.0f, 0.0f);
+    if (sceneRoot) {
+        sceneRoot->renderRecursive(Mat4::identity());
+    }
 
-    glm::mat4 view = glm::lookAt(eye, center, up);
-    glLoadMatrixf(glm::value_ptr(view));
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-    // Przykładowe użycie naszej klasy ułatwiającej rysowanie z zadania 7
-    // Rysujemy dwa prymitywy jednocześnie: sześcian (z lewej) i walec (z prawej)
-    // Używamy trybu wireframeMode aby zadecydować czy rysujemy solid czy wireframe
-    glPushMatrix();
-    glColor3f(0.8f, 0.4f, 0.1f);
-    glTranslatef(-1.5f, 0.0f, 0.0f);
-    Primitive::drawCube(1.0f, !wireframeMode);
-    glPopMatrix();
-
-    glPushMatrix();
-    glColor3f(0.2f, 0.6f, 0.9f);
-    glTranslatef(1.5f, 0.0f, 0.0f);
-    Primitive::drawCylinder(0.7f, 2.0f, 36, !wireframeMode);
-    glPopMatrix();
-
-    // Aktualizacja licznika FPS
     ++frameCount;
     int now = glutGet(GLUT_ELAPSED_TIME);
     int elapsed = now - lastFPSTime;
     if (elapsed >= 1000) {
-        fpsValue = frameCount * 1000.0f / (float)elapsed;
+        fpsValue = frameCount * 1000.0f / static_cast<float>(elapsed);
         frameCount = 0;
         lastFPSTime = now;
     }
 
-    // Rysowanie HUD (FPS) w lewym górnym rogu
-    // Zachowaj aktualne macierze
     glMatrixMode(GL_PROJECTION);
     glPushMatrix();
     glLoadIdentity();
-    // Ustaw ortho zgodne z pikselami okna
     glOrtho(0, windowWidth, 0, windowHeight, -1, 1);
+
     glMatrixMode(GL_MODELVIEW);
     glPushMatrix();
     glLoadIdentity();
 
-    // Rysuj tekst (wyłącz głębokość)
     GLboolean depthWasEnabled = glIsEnabled(GL_DEPTH_TEST);
     glDisable(GL_DEPTH_TEST);
+    glDisable(GL_LIGHTING);
     glColor3f(1.0f, 1.0f, 1.0f);
-    // Pozycja tekstu: 10 px od lewej, 20 px od góry
-    std::string fpsText = std::string("FPS: ") + std::to_string((int)(fpsValue + 0.5f));
+
+    std::string fpsText = std::string("FPS: ") + std::to_string(static_cast<int>(fpsValue + 0.5f));
     glRasterPos2i(10, windowHeight - 20);
-    for (char c : fpsText) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, c);
+    for (char c : fpsText) {
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, c);
+    }
 
-    if (depthWasEnabled) glEnable(GL_DEPTH_TEST);
+    if (depthWasEnabled) {
+        glEnable(GL_DEPTH_TEST);
+    }
+    glEnable(GL_LIGHTING);
 
-    // Przywróć macierze
     glMatrixMode(GL_MODELVIEW);
     glPopMatrix();
     glMatrixMode(GL_PROJECTION);
     glPopMatrix();
-    
+
     if (enableDoubleBuffer) {
         glutSwapBuffers();
     } else {
@@ -280,46 +218,38 @@ void Engine::render() {
 }
 
 void Engine::resize(int width, int height) {
-    if (height == 0) height = 1;
+    if (height == 0) {
+        height = 1;
+    }
+
     windowWidth = width;
     windowHeight = height;
     glViewport(0, 0, width, height);
-
-    float aspect = (float)width / (float)height;
-
-    // Przeliczenie macierzy za pomocą biblioteki GLM
-    if (currentProjection == ProjectionType::PERSPECTIVE) {
-        // Rzutowanie perspektywiczne: kąt widzenia 60 stopni, stosunek boków, zNear=1.0, zFar=100.0
-        projectionMatrix = glm::perspective(glm::radians(60.0f), aspect, 1.0f, 100.0f);
-    } else {
-        // Rzutowanie ortogonalne
-        projectionMatrix = glm::ortho(-10.0f * aspect, 10.0f * aspect, -10.0f, 10.0f, 1.0f, 100.0f);
-    }
+    updateProjection();
 }
 
 void Engine::handleKeyboard(unsigned char key, int x, int y, bool isDown) {
+    (void)x;
+    (void)y;
     keys[key] = isDown;
-    
-    if (isDown) {
-        if (key == 27) { // Klawisz ESC = zamknięcie gry
-            shutdown();
-            exit(0);
-        }
-        else if (key == 'p') {
-            setProjection(ProjectionType::PERSPECTIVE); // Zmiana aktywnego rzutowania
-        }
-        else if (key == 'o') {
-            setProjection(ProjectionType::ORTHOGRAPHIC); // Zmiana aktywnego rzutowania
-        }
-        else if (key == 'm') {
-            // Przełącz tryb rysowania
-            toggleWireframe();
-        }
+
+    if (!isDown) {
+        return;
+    }
+
+    if (key == 27) {
+        shutdown();
+        std::exit(0);
+    } else if (key == 'p') {
+        setProjection(ProjectionType::PERSPECTIVE);
+    } else if (key == 'o') {
+        setProjection(ProjectionType::ORTHOGRAPHIC);
+    } else if (key == 'm') {
+        toggleWireframe();
     }
 }
 
 void Engine::handleMouse(int button, int state, int x, int y) {
-    // Lewy przycisk -> orbitowanie
     if (button == GLUT_LEFT_BUTTON) {
         if (state == GLUT_DOWN) {
             mouseLeftDown = true;
@@ -330,17 +260,22 @@ void Engine::handleMouse(int button, int state, int x, int y) {
         }
     }
 
-    // Scroll: w GLUT często reprezentowany jako przyciski 3 (up) i 4 (down)
-    if (button == 3) { // wheel up
-        camDistance -= 0.3f;
-        if (camDistance < 0.2f) camDistance = 0.2f;
-    } else if (button == 4) { // wheel down
-        camDistance += 0.3f;
+    if (button == 3) {
+        cameraDistance -= 0.3f;
+        if (cameraDistance < 0.2f) {
+            cameraDistance = 0.2f;
+        }
+        observer->setOrbit(cameraYaw, cameraPitch, cameraDistance);
+    } else if (button == 4) {
+        cameraDistance += 0.3f;
+        observer->setOrbit(cameraYaw, cameraPitch, cameraDistance);
     }
 }
 
 void Engine::handleMouseMotion(int x, int y) {
-    if (!mouseLeftDown) return;
+    if (!mouseLeftDown) {
+        return;
+    }
 
     int dx = x - lastMouseX;
     int dy = y - lastMouseY;
@@ -348,46 +283,56 @@ void Engine::handleMouseMotion(int x, int y) {
     const float sensX = 0.005f;
     const float sensY = 0.005f;
 
-    camYaw += dx * sensX;
-    camPitch += -dy * sensY;
+    cameraYaw += dx * sensX;
+    cameraPitch += -dy * sensY;
 
-    // ograniczenie pitcha (nie obracamy całkowicie do góry nogi)
-    const float limit = glm::radians(89.0f);
-    if (camPitch > limit) camPitch = limit;
-    if (camPitch < -limit) camPitch = -limit;
+    const float limit = degreesToRadians(89.0f);
+    if (cameraPitch > limit) {
+        cameraPitch = limit;
+    }
+    if (cameraPitch < -limit) {
+        cameraPitch = -limit;
+    }
+
+    observer->setOrbit(cameraYaw, cameraPitch, cameraDistance);
 
     lastMouseX = x;
     lastMouseY = y;
 }
 
-
-
 void Engine::onTimer() {
-    // Ciągłe przetwarzanie stanu klawiszy (ruch kamery)
-    float moveSpeed = 0.05f * camDistance; // skaluj prędkość wraz z odległością
-    // Kierunki ruchu wyliczone względem aktualnego widoku kamery.
-    // front wskazuje tam, gdzie patrzy kamera, więc W przesuwa zgodnie z widokiem,
-    // a D faktycznie idzie w prawo na ekranie.
-    glm::vec3 eye(
-        camTarget.x + camDistance * cosf(camPitch) * sinf(camYaw),
-        camTarget.y + camDistance * sinf(camPitch),
-        camTarget.z + camDistance * cosf(camPitch) * cosf(camYaw)
+    float moveSpeed = 0.05f * cameraDistance;
+    Vec3 eye(
+        cameraTarget.x + cameraDistance * std::cos(cameraPitch) * std::sin(cameraYaw),
+        cameraTarget.y + cameraDistance * std::sin(cameraPitch),
+        cameraTarget.z + cameraDistance * std::cos(cameraPitch) * std::cos(cameraYaw)
     );
-    glm::vec3 forward = glm::normalize(camTarget - eye);
-    glm::vec3 right = glm::normalize(glm::cross(forward, glm::vec3(0.0f, 1.0f, 0.0f)));
 
-    if (keys['w'] || keys['W']) camTarget += forward * moveSpeed;
-    if (keys['s'] || keys['S']) camTarget -= forward * moveSpeed;
-    if (keys['a'] || keys['A']) camTarget -= right * moveSpeed;
-    if (keys['d'] || keys['D']) camTarget += right * moveSpeed;
-    if (keys['q'] || keys['Q']) camTarget.y += moveSpeed;
-    if (keys['e'] || keys['E']) camTarget.y -= moveSpeed;
+    Vec3 forward = normalize(cameraTarget - eye);
+    Vec3 right = normalize(cross(forward, Vec3(0.0f, 1.0f, 0.0f)));
 
-    // Zmiana prymitywu (jednorazowe przełączenia obsługujemy na zdarzeniu keydown)
-    if (keys['1']) currentPrimitive = PrimitiveType::CUBE;
-    if (keys['2']) currentPrimitive = PrimitiveType::CYLINDER;
+    if (keys['w'] || keys['W']) {
+        cameraTarget += forward * moveSpeed;
+    }
+    if (keys['s'] || keys['S']) {
+        cameraTarget -= forward * moveSpeed;
+    }
+    if (keys['a'] || keys['A']) {
+        cameraTarget -= right * moveSpeed;
+    }
+    if (keys['d'] || keys['D']) {
+        cameraTarget += right * moveSpeed;
+    }
+    if (keys['q'] || keys['Q']) {
+        cameraTarget.y += moveSpeed;
+    }
+    if (keys['e'] || keys['E']) {
+        cameraTarget.y -= moveSpeed;
+    }
 
-    // Zmiana targetFPS
+    observer->setTarget(cameraTarget);
+    observer->setOrbit(cameraYaw, cameraPitch, cameraDistance);
+
     if (keys['+'] || keys['=']) {
         setTargetFPS(getTargetFPS() + 5);
     }
@@ -395,12 +340,10 @@ void Engine::onTimer() {
         setTargetFPS(std::max(1, getTargetFPS() - 5));
     }
 
-    // Wymuszenie odrysowania klatki — tylko jeśli jest aktywne okno
     if (glutGetWindow() != 0) {
         glutPostRedisplay();
     }
 
-    // Ponowne zaplanowanie wywołania czasomierza
     glutTimerFunc(1000 / targetFPS, timerCallback, 0);
 }
 
@@ -416,11 +359,16 @@ void Engine::toggleWireframe() {
     wireframeMode = !wireframeMode;
 }
 
-// --- ZWROTNE METODY STATYCZNE DLA FREEGLUT ---
+std::shared_ptr<Camera> Engine::getCamera() const { return observer; }
+std::shared_ptr<PointLight> Engine::getPointLight() const { return pointLight; }
+std::shared_ptr<CubeNode> Engine::getCube() const { return cube; }
+std::shared_ptr<CylinderNode> Engine::getCylinder() const { return cylinder; }
+std::shared_ptr<SceneNode> Engine::getSceneRoot() const { return sceneRoot; }
+
 void Engine::displayCallback() { if (instance) instance->render(); }
-void Engine::reshapeCallback(int w, int h) { if (instance) instance->resize(w, h); }
-void Engine::keyboardDownCallback(unsigned char k, int x, int y) { if (instance) instance->handleKeyboard(k, x, y, true); }
-void Engine::keyboardUpCallback(unsigned char k, int x, int y) { if (instance) instance->handleKeyboard(k, x, y, false); }
-void Engine::mouseCallback(int b, int s, int x, int y) { if (instance) instance->handleMouse(b, s, x, y); }
+void Engine::reshapeCallback(int width, int height) { if (instance) instance->resize(width, height); }
+void Engine::keyboardDownCallback(unsigned char key, int x, int y) { if (instance) instance->handleKeyboard(key, x, y, true); }
+void Engine::keyboardUpCallback(unsigned char key, int x, int y) { if (instance) instance->handleKeyboard(key, x, y, false); }
+void Engine::mouseCallback(int button, int state, int x, int y) { if (instance) instance->handleMouse(button, state, x, y); }
 void Engine::motionCallback(int x, int y) { if (instance) instance->handleMouseMotion(x, y); }
-void Engine::timerCallback(int val) { if (instance) instance->onTimer(); }
+void Engine::timerCallback(int value) { (void)value; if (instance) instance->onTimer(); }

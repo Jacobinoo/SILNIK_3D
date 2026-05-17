@@ -1,70 +1,53 @@
 #ifndef ENGINE_H
 #define ENGINE_H
 
+#include "Camera.h"
+#include "Light.h"
+#include "PrimitiveNode.h"
 #include <GL/freeglut.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
+#include <memory>
 #include <string>
 
 // Typ wyliczeniowy do zmiany aktywnego rzutowania
 enum class ProjectionType { ORTHOGRAPHIC, PERSPECTIVE };
 
-// Klasa do łatwego rysowania obiektów zdefiniowanych we FreeGLUT (Zadanie 7)
-class Primitive {
-public:
-    static void drawCube(float size, bool solid = true);
-    static void drawSphere(float radius, int slices, int stacks, bool solid = true);
-    static void drawTeapot(float size, bool solid = true);
-    // Proceduralny walec (fallback zamiast GLU)
-    static void drawCylinder(float radius, float height, int slices = 24, bool solid = true);
-};
-
-// Zaimplementowana klasa silnika (Zadanie 6)
+// Silnik sceny 3D z hierarchią węzłów, kamerą-obserwatorem i oświetleniem punktowym
 class Engine {
 private:
-    static Engine* instance; // Do obsługi statycznych callbacków (GLUT Object Oriented Framework)
+    static Engine* instance;
 
-    // Parametryzacja trybu graficznego i okna
     int windowWidth;
     int windowHeight;
     std::string windowTitle;
     bool isFullscreen;
 
-    // Parametryzacja innych rzeczy
     int targetFPS;
     bool enableDepthBuffer;
     bool enableDoubleBuffer;
-    
-    // Rzutowanie
+
     ProjectionType currentProjection;
-    glm::mat4 projectionMatrix;
 
-    // Tablica stanów klawiatury
     bool keys[256];
-
-    // Stan myszy i kamery do prostego orbitowania
     bool mouseLeftDown;
     int lastMouseX;
     int lastMouseY;
 
-    // Kamera (orbit): target + spherical coords
-    glm::vec3 camTarget; // punkt na który patrzymy
-    float camYaw;   // obrót wokół osi Y (radiany)
-    float camPitch; // obrót góra/dół (radiany)
-    float camDistance; // odległość od targetu
+    Vec3 cameraTarget;
+    float cameraYaw;
+    float cameraPitch;
+    float cameraDistance;
 
-    // Aktualnie rysowany prymityw
-    enum class PrimitiveType { CUBE, CYLINDER } currentPrimitive;
-    // Tryb rysowania (solid / wireframe)
+    std::shared_ptr<SceneNode> sceneRoot;
+    std::shared_ptr<Camera> observer;
+    std::shared_ptr<PointLight> pointLight;
+    std::shared_ptr<CubeNode> cube;
+    std::shared_ptr<CylinderNode> cylinder;
+
     bool wireframeMode;
-
-    // Licznik FPS
     int frameCount;
     float fpsValue;
     int lastFPSTime;
 
-    // Prywatne metody obsługi wywoływane przez callbacki
     void render();
     void resize(int width, int height);
     void handleKeyboard(unsigned char key, int x, int y, bool isDown);
@@ -72,40 +55,31 @@ private:
     void handleMouseMotion(int x, int y);
     void onTimer();
 
-    
+    void configureLightingState() const;
+    void updateProjection();
 
 public:
-    // Getter/Setter dla targetFPS (publiczne)
-    void setTargetFPS(int fps);
-    int getTargetFPS() const;
-
-    // Przełącznik trybu rysowania solid/wireframe
-    void toggleWireframe();
     Engine();
     ~Engine();
 
-    // Inicjacja biblioteki
     void init(int argc, char** argv);
-
-    // Parametryzowanie trybu graficznego (rozdzielczość, pełny ekran)
     void setWindowParams(int width, int height, const std::string& title, bool fullscreen = false);
-
-    // Parametryzowanie innych rzeczy (FPS, wielokrotne buforowanie, bufor Z)
     void setGraphicsParams(int fps, bool depth, bool doubleBuffering);
-
-    // Obsługa czyszczenia ekranu do zadanego koloru
     void setClearColor(float r, float g, float b, float a);
-
-    // Obsługa zmiany aktywnego rzutowania
     void setProjection(ProjectionType type);
-
-    // Główna pętla gry
     void run();
-
-    // Zamknięcie gry
     void shutdown();
 
-    // Statyczne metody zwrotne dla FreeGLUT
+    void setTargetFPS(int fps);
+    int getTargetFPS() const;
+    void toggleWireframe();
+
+    std::shared_ptr<Camera> getCamera() const;
+    std::shared_ptr<PointLight> getPointLight() const;
+    std::shared_ptr<CubeNode> getCube() const;
+    std::shared_ptr<CylinderNode> getCylinder() const;
+    std::shared_ptr<SceneNode> getSceneRoot() const;
+
     static void displayCallback();
     static void reshapeCallback(int width, int height);
     static void keyboardDownCallback(unsigned char key, int x, int y);
