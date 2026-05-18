@@ -12,7 +12,7 @@ if(APPLE)
     link_directories(/usr/local/lib)
 endif()
 
-# Windows: vcpkg (ręczne wskazanie ścieżek jeśli nie użyto toolchain)
+# Windows: vcpkg
 if(WIN32)
     set(VCPKG_DIR "C:/vcpkg/installed/x64-windows")
     include_directories("${VCPKG_DIR}/include")
@@ -21,18 +21,30 @@ endif()
 
 find_package(OpenGL REQUIRED)
 
+set(ENGINE_SOURCES
+    Engine/Engine.cpp
+    Engine/Math3D.cpp
+    Engine/SceneNode.cpp
+    Engine/Camera.cpp
+    Engine/Light.cpp
+    Engine/PrimitiveNode.cpp
+    Engine/Texture.cpp
+)
+
 set(SOURCES
     main.cpp
-    Engine.cpp
-    Math3D.cpp
-    SceneNode.cpp
-    Camera.cpp
-    Light.cpp
-    PrimitiveNode.cpp
-    Texture.cpp
+    ${ENGINE_SOURCES}
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})
+
+# Ścieżki include:
+#   ${CMAKE_SOURCE_DIR}        -> main.cpp używa #include "Engine/Engine.h"
+#   ${CMAKE_SOURCE_DIR}/Engine -> pliki silnika używają #include "Math3D.h" etc.
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/Engine
+)
 
 if(APPLE)
     target_link_libraries(${PROJECT_NAME} PRIVATE "-framework OpenGL" glut)
@@ -42,7 +54,6 @@ elseif(WIN32)
         "${VCPKG_DIR}/lib/freeglut.lib"
         "${VCPKG_DIR}/lib/GlU32.Lib"
     )
-    # Skopiuj freeglut.dll obok pliku wykonywalnego
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${VCPKG_DIR}/bin/freeglut.dll"
