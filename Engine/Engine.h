@@ -42,8 +42,10 @@ private:
     // Wejscie
     bool keys[256];
     bool mouseLeftDown;
+    bool freeMouseLook;       // FPS-style: kursor schowany, motion zawsze aktywny
     int  lastMouseX;
     int  lastMouseY;
+    float mouseSensitivity;
 
     // Stan kamery (wspolny dla orbitu i FP)
     Vec3  cameraTarget;
@@ -109,6 +111,8 @@ public:
     float getCameraPitch() const { return cameraPitch; }
     void  setCameraYawPitch(float y, float p) { cameraYaw = y; cameraPitch = p; }
     bool  isKeyDown(unsigned char k) const { return keys[k]; }
+    void  setFreeMouseLook(bool enabled);
+    void  setMouseSensitivity(float s) { mouseSensitivity = s; }
 
     // Dostep do sceny
     std::shared_ptr<Camera>     getCamera()     const { return observer;   }

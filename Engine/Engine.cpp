@@ -18,7 +18,8 @@ Engine::Engine()
       currentProjection(ProjectionType::PERSPECTIVE),
       cameraControl(CameraControlMode::ENGINE_ORBIT),
       wireframeMode(false), lightingEnabled(true), smoothShading(true),
-      mouseLeftDown(false), lastMouseX(0), lastMouseY(0),
+      mouseLeftDown(false), freeMouseLook(false),
+      lastMouseX(0), lastMouseY(0), mouseSensitivity(0.0035f),
       cameraTarget(0.0f, 0.0f, 0.0f),
       cameraYaw(0.0f), cameraPitch(0.0f), cameraDistance(8.0f),
       sceneRoot(std::make_shared<SceneNode>("Root")),
@@ -283,17 +284,47 @@ void Engine::handleMouse(int button, int state, int x, int y) {
 }
 
 void Engine::handleMouseMotion(int x, int y) {
+    if (freeMouseLook) {
+        int cx = windowWidth / 2;
+        int cy = windowHeight / 2;
+        // Ignoruj zdarzenie spowodowane wlasnym warp pointer
+        if (x == cx && y == cy) return;
+
+        int dx = x - cx;
+        int dy = y - cy;
+
+        cameraYaw   += dx * mouseSensitivity;
+        cameraPitch += -dy * mouseSensitivity;
+        cameraPitch  = std::max(-toRad(85.0f), std::min(toRad(85.0f), cameraPitch));
+
+        // Wracamy kursor na srodek aby motion bylo ciagle
+        glutWarpPointer(cx, cy);
+        return;
+    }
+
     if (!mouseLeftDown) return;
 
     int dx = x - lastMouseX;
     int dy = y - lastMouseY;
 
-    cameraYaw   += dx * 0.005f;
-    cameraPitch += -dy * 0.005f;
-    cameraPitch  = std::max(-toRad(89.0f), std::min(toRad(89.0f), cameraPitch));
+    cameraYaw   += dx * mouseSensitivity;
+    cameraPitch += -dy * mouseSensitivity;
+    cameraPitch  = std::max(-toRad(85.0f), std::min(toRad(85.0f), cameraPitch));
 
     lastMouseX = x;
     lastMouseY = y;
+}
+
+void Engine::setFreeMouseLook(bool enabled) {
+    freeMouseLook = enabled;
+    if (enabled) {
+        glutSetCursor(GLUT_CURSOR_NONE);
+        glutWarpPointer(windowWidth / 2, windowHeight / 2);
+        lastMouseX = windowWidth / 2;
+        lastMouseY = windowHeight / 2;
+    } else {
+        glutSetCursor(GLUT_CURSOR_INHERIT);
+    }
 }
 
 void Engine::onTimer() {
