@@ -6,13 +6,17 @@
 #include "PrimitiveNode.h"
 #include "Texture.h"
 #include <GL/freeglut.h>
+#include <functional>
 #include <memory>
 #include <string>
 
-enum class ProjectionType { ORTHOGRAPHIC, PERSPECTIVE };
+enum class ProjectionType    { ORTHOGRAPHIC, PERSPECTIVE };
+enum class CameraControlMode { ENGINE_ORBIT, GAME_CONTROLLED };
 
-// Główna klasa silnika 3D.
-// Zarządza sceną, kamerą, oświetleniem, teksturami i pętlą renderowania.
+// Glowny silnik 3D - infrastruktura.
+// Zapewnia okno (FreeGLUT), kontekst GL, graf sceny, kamere, oswietlenie,
+// petle renderujaca z licznikiem FPS oraz callbacki dla logiki gry.
+// Konkretna scena demo / gra budowana jest przez kod uzytkownika.
 class Engine {
 private:
     static Engine* instance;
@@ -24,48 +28,47 @@ private:
     bool isFullscreen;
 
     // Grafika
-    int targetFPS;
+    int  targetFPS;
     bool enableDepthBuffer;
     bool enableDoubleBuffer;
-    ProjectionType currentProjection;
+    ProjectionType    currentProjection;
+    CameraControlMode cameraControl;
 
     // Stany renderowania
     bool wireframeMode;
     bool lightingEnabled;
     bool smoothShading;
 
-    // Wejście: klawiatura i mysz
+    // Wejscie
     bool keys[256];
     bool mouseLeftDown;
-    int lastMouseX;
-    int lastMouseY;
+    int  lastMouseX;
+    int  lastMouseY;
 
-    // Kamera orbitalna
-    Vec3 cameraTarget;
+    // Stan kamery (wspolny dla orbitu i FP)
+    Vec3  cameraTarget;
     float cameraYaw;
     float cameraPitch;
     float cameraDistance;
 
     // Graf sceny
-    std::shared_ptr<SceneNode>    sceneRoot;
-    std::shared_ptr<Camera>       observer;
-    std::shared_ptr<PointLight>   pointLight;
-    std::shared_ptr<CubeNode>     cube;
-    std::shared_ptr<CylinderNode> cylinder;
-    std::shared_ptr<SphereNode>   sphere;
-    std::shared_ptr<PlaneNode>    plane;
+    std::shared_ptr<SceneNode>  sceneRoot;
+    std::shared_ptr<Camera>     observer;
+    std::shared_ptr<PointLight> pointLight;
 
-    // Tekstury proceduralne
-    std::shared_ptr<Texture> checkerTex;
-    std::shared_ptr<Texture> stripeTex;
-    std::shared_ptr<Texture> gradientTex;
-
-    // Licznik FPS
-    int frameCount;
+    // Licznik FPS i czasu
+    int   frameCount;
     float fpsValue;
-    int lastFPSTime;
+    int   lastFPSTime;
+    int   lastTickMs;
 
-    // Prywatne metody
+    // Callbacki gry
+    std::function<void(float)> updateCallback;
+    std::function<void()>      shootCallback;
+    std::function<void()>      resetCallback;
+    std::function<void()>      hudCallback;
+
+    // Metody prywatne
     void render();
     void resize(int width, int height);
     void handleKeyboard(unsigned char key, int x, int y, bool isDown);
@@ -76,12 +79,12 @@ private:
     void applyLightingState() const;
     void updateProjection();
     void drawHUD() const;
-    void drawString(int x, int y, const std::string& text) const;
 
 public:
     Engine();
     ~Engine();
 
+    // Inicjalizacja
     void init(int argc, char** argv);
     void setWindowParams(int width, int height, const std::string& title, bool fullscreen = false);
     void setGraphicsParams(int fps, bool depth, bool doubleBuffering);
@@ -90,21 +93,39 @@ public:
     void run();
     void shutdown();
 
+    // FPS / stan renderera
     void setTargetFPS(int fps);
     int  getTargetFPS() const;
     void toggleWireframe();
     void toggleLighting();
     void toggleShading();
+    int  windowW() const { return windowWidth;  }
+    int  windowH() const { return windowHeight; }
 
-    std::shared_ptr<Camera>       getCamera()     const;
-    std::shared_ptr<PointLight>   getPointLight() const;
-    std::shared_ptr<CubeNode>     getCube()       const;
-    std::shared_ptr<CylinderNode> getCylinder()   const;
-    std::shared_ptr<SphereNode>   getSphere()     const;
-    std::shared_ptr<PlaneNode>    getPlane()      const;
-    std::shared_ptr<SceneNode>    getSceneRoot()  const;
+    // Kontrola kamery
+    void setCameraControl(CameraControlMode m) { cameraControl = m; }
+    CameraControlMode cameraControlMode() const { return cameraControl; }
+    float getCameraYaw()   const { return cameraYaw;   }
+    float getCameraPitch() const { return cameraPitch; }
+    void  setCameraYawPitch(float y, float p) { cameraYaw = y; cameraPitch = p; }
+    bool  isKeyDown(unsigned char k) const { return keys[k]; }
 
-    // Callbacki dla FreeGLUT (muszą być statyczne)
+    // Dostep do sceny
+    std::shared_ptr<Camera>     getCamera()     const { return observer;   }
+    std::shared_ptr<PointLight> getPointLight() const { return pointLight; }
+    std::shared_ptr<SceneNode>  getSceneRoot()  const { return sceneRoot;  }
+
+    // Callbacki gry
+    void setUpdateCallback(std::function<void(float)> cb) { updateCallback = std::move(cb); }
+    void setShootCallback (std::function<void()>      cb) { shootCallback  = std::move(cb); }
+    void setResetCallback (std::function<void()>      cb) { resetCallback  = std::move(cb); }
+    void setHUDCallback   (std::function<void()>      cb) { hudCallback    = std::move(cb); }
+
+    // Pomocniki HUD (do uzytku w hudCallback w 2D)
+    void drawString(int x, int y, const std::string& text) const;
+    void drawStringLarge(int x, int y, const std::string& text) const;
+
+    // Callbacki dla FreeGLUT
     static void displayCallback();
     static void reshapeCallback(int width, int height);
     static void keyboardDownCallback(unsigned char key, int x, int y);

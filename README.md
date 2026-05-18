@@ -30,20 +30,19 @@ cmake --build build --parallel 4
 
 ---
 
-## Sterowanie
+## Demo: Strzelnica 3D
 
-### Kamera
+Pomarańczowy obracający się cel pojawia się losowo w przestrzeni przed graczem. Trafienie spacją = +1 punkt. Pudło lub niezestrzelenie w czasie 5 sekund = -1 życie. Start: 5 żyć.
 
-| Klawisz / Akcja         | Efekt                              |
-|-------------------------|------------------------------------|
-| `W` / `S`               | Ruch celu kamery do przodu / tyłu  |
-| `A` / `D`               | Ruch celu kamery w lewo / prawo    |
-| `Q` / `E`               | Ruch celu kamery w górę / dół      |
-| `LPM` + ruch myszy      | Obrót kamery wokół celu (orbit)    |
-| Scroll w górę           | Przybliżenie (zoom in)             |
-| Scroll w dół            | Oddalenie (zoom out)               |
+### Sterowanie gry
 
-### Renderowanie
+| Klawisz / Akcja         | Efekt                                       |
+|-------------------------|---------------------------------------------|
+| `LPM` + ruch myszy      | Celowanie (rozglądanie się w trybie FP)     |
+| `Spacja`                | Strzał — raycast od kamery w kierunku patrzenia |
+| `R`                     | Restart gry (po Game Over)                  |
+
+### Sterowanie silnika (dostępne zawsze)
 
 | Klawisz | Efekt                                          |
 |---------|------------------------------------------------|
@@ -52,14 +51,18 @@ cmake --build build --parallel 4
 | `M`     | Przełącz tryb siatki (wireframe)               |
 | `P`     | Rzutowanie perspektywiczne                     |
 | `O`     | Rzutowanie ortogonalne                         |
+| `+`/`-` | Zwiększ / zmniejsz docelowy FPS                |
+| `ESC`   | Zamknij aplikację                              |
 
-### Ogólne
+### Funkcje techniczne demonstrowane przez grę
 
-| Klawisz | Efekt                     |
-|---------|---------------------------|
-| `+`     | Zwiększ docelowy FPS      |
-| `-`     | Zmniejsz docelowy FPS     |
-| `ESC`   | Zamknij aplikację         |
+- **Ray-sphere intersection** — własna implementacja w `Math3D.cpp` (`raySphereIntersect`)
+- **Animacje** — obrót celu wokół osi Y + sinusoidalne kołysanie pionowe
+- **Licznik czasu** — `dt` (delta time) liczony przez silnik, przekazywany do gry
+- **Tryb pierwszoosobowy kamery** — nowy tryb `FIRST_PERSON` w `Camera`
+- **Tekstury proceduralne** — szachownica, paski, generowane bez plików
+- **HUD 2D z grą** — krzyż celownika, wynik, życia, pasek czasu celu, ekran Game Over
+- **Callbacks update/shoot/reset/hud** — silnik odpina się od logiki gry
 
 ---
 

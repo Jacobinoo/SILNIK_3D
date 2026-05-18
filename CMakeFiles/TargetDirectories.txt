@@ -1,3 +1,0 @@
-/Users/kuba/Desktop/SILNIK_3D/CMakeFiles/Silnik3D.dir
-/Users/kuba/Desktop/SILNIK_3D/CMakeFiles/edit_cache.dir
-/Users/kuba/Desktop/SILNIK_3D/CMakeFiles/rebuild_cache.dir

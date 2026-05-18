@@ -52,4 +52,10 @@ Mat4 operator*(const Mat4& left, const Mat4& right);
 Vec3 transformPoint(const Mat4& matrix, const Vec3& point);
 Vec3 transformVector(const Mat4& matrix, const Vec3& vector);
 
+// Test przeciecia promienia ze sfera (ray-sphere intersection).
+// Promien: P(t) = origin + t * direction, t >= 0.
+// Zwraca true jesli istnieje przeciecie z t > 0; outT = najblizsze.
+bool raySphereIntersect(const Vec3& origin, const Vec3& direction,
+                        const Vec3& center, float radius, float& outT);
+
 #endif

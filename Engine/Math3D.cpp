@@ -179,3 +179,24 @@ Vec3 transformVector(const Mat4& matrix, const Vec3& vector) {
         matrix.at(2, 0) * vector.x + matrix.at(2, 1) * vector.y + matrix.at(2, 2) * vector.z
     );
 }
+
+bool raySphereIntersect(const Vec3& origin, const Vec3& direction,
+                        const Vec3& center, float radius, float& outT) {
+    // |origin + t*dir - center|^2 = radius^2
+    // (t*dir + oc).(t*dir + oc) = r^2   gdzie oc = origin - center
+    // a*t^2 + 2*b*t + c = 0
+    Vec3  oc   = origin - center;
+    float a    = dot(direction, direction);
+    float b    = dot(oc, direction);
+    float c    = dot(oc, oc) - radius * radius;
+    float disc = b * b - a * c;
+    if (disc < 0.0f) return false;
+
+    float sqrtD = std::sqrt(disc);
+    float t1 = (-b - sqrtD) / a;
+    float t2 = (-b + sqrtD) / a;
+
+    if (t1 > 0.0001f) { outT = t1; return true; }
+    if (t2 > 0.0001f) { outT = t2; return true; }
+    return false;
+}

@@ -31,9 +31,14 @@ set(ENGINE_SOURCES
     Engine/Texture.cpp
 )
 
+set(DEMO_SOURCES
+    Demo/ShootingGallery.cpp
+)
+
 set(SOURCES
     main.cpp
     ${ENGINE_SOURCES}
+    ${DEMO_SOURCES}
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})
