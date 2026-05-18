@@ -2,174 +2,235 @@
 #include <GL/freeglut.h>
 #include <cmath>
 
-PrimitiveNode::PrimitiveNode(const std::string& name) : SceneNode(name), surfaceMaterial() {}
+// ===================== PrimitiveNode =====================
+
+PrimitiveNode::PrimitiveNode(const std::string& name)
+    : SceneNode(name), surfaceMaterial() {}
 
 void PrimitiveNode::setMaterial(const Material& value) { surfaceMaterial = value; }
 const Material& PrimitiveNode::material() const { return surfaceMaterial; }
 
+void PrimitiveNode::setTexture(const std::shared_ptr<Texture>& tex) { surfaceTexture = tex; }
+std::shared_ptr<Texture> PrimitiveNode::texture() const { return surfaceTexture; }
+
 void PrimitiveNode::renderSelf(const Mat4& worldMatrix) const {
-    GLfloat ambient[4] = { surfaceMaterial.ambient.x, surfaceMaterial.ambient.y, surfaceMaterial.ambient.z, 1.0f };
-    GLfloat diffuse[4] = { surfaceMaterial.diffuse.x, surfaceMaterial.diffuse.y, surfaceMaterial.diffuse.z, 1.0f };
+    // Ustaw parametry materiału dla oświetlenia Phonga
+    GLfloat ambient[4]  = { surfaceMaterial.ambient.x,  surfaceMaterial.ambient.y,  surfaceMaterial.ambient.z,  1.0f };
+    GLfloat diffuse[4]  = { surfaceMaterial.diffuse.x,  surfaceMaterial.diffuse.y,  surfaceMaterial.diffuse.z,  1.0f };
     GLfloat specular[4] = { surfaceMaterial.specular.x, surfaceMaterial.specular.y, surfaceMaterial.specular.z, 1.0f };
-    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, ambient);
-    glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, diffuse);
-    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specular);
-    glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, surfaceMaterial.shininess);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT,   ambient);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE,   diffuse);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR,  specular);
+    glMaterialf (GL_FRONT_AND_BACK, GL_SHININESS, surfaceMaterial.shininess);
+
+    // Kolor dyfuzji jako fallback gdy oświetlenie jest wyłączone
+    glColor3f(surfaceMaterial.diffuse.x, surfaceMaterial.diffuse.y, surfaceMaterial.diffuse.z);
+
+    bool hasTexture = (surfaceTexture && surfaceTexture->isLoaded());
+    if (hasTexture) {
+        glEnable(GL_TEXTURE_2D);
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+        surfaceTexture->bind();
+    }
 
     glPushMatrix();
     glMultMatrixf(worldMatrix.data());
-    drawGeometry(true);
+    drawGeometry();
     glPopMatrix();
+
+    if (hasTexture) {
+        surfaceTexture->unbind();
+        glDisable(GL_TEXTURE_2D);
+    }
 }
+
+// ===================== CubeNode =====================
 
 CubeNode::CubeNode(float size) : PrimitiveNode("Cube"), cubeSize(size) {}
 
 void CubeNode::setSize(float value) { cubeSize = value; }
 float CubeNode::size() const { return cubeSize; }
 
-void CubeNode::drawGeometry(bool solid) const {
-    const float halfSize = cubeSize * 0.5f;
-    if (solid) {
-        glBegin(GL_QUADS);
-        glNormal3f(0.0f, 0.0f, 1.0f);
-        glVertex3f(-halfSize, -halfSize, halfSize);
-        glVertex3f(halfSize, -halfSize, halfSize);
-        glVertex3f(halfSize, halfSize, halfSize);
-        glVertex3f(-halfSize, halfSize, halfSize);
+void CubeNode::drawGeometry() const {
+    const float h = cubeSize * 0.5f;
 
-        glNormal3f(0.0f, 0.0f, -1.0f);
-        glVertex3f(halfSize, -halfSize, -halfSize);
-        glVertex3f(-halfSize, -halfSize, -halfSize);
-        glVertex3f(-halfSize, halfSize, -halfSize);
-        glVertex3f(halfSize, halfSize, -halfSize);
+    glBegin(GL_QUADS);
 
-        glNormal3f(-1.0f, 0.0f, 0.0f);
-        glVertex3f(-halfSize, -halfSize, -halfSize);
-        glVertex3f(-halfSize, -halfSize, halfSize);
-        glVertex3f(-halfSize, halfSize, halfSize);
-        glVertex3f(-halfSize, halfSize, -halfSize);
+    // Przód (+Z)
+    glNormal3f(0.0f, 0.0f, 1.0f);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-h, -h,  h);
+    glTexCoord2f(1.0f, 0.0f); glVertex3f( h, -h,  h);
+    glTexCoord2f(1.0f, 1.0f); glVertex3f( h,  h,  h);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(-h,  h,  h);
 
-        glNormal3f(1.0f, 0.0f, 0.0f);
-        glVertex3f(halfSize, -halfSize, halfSize);
-        glVertex3f(halfSize, -halfSize, -halfSize);
-        glVertex3f(halfSize, halfSize, -halfSize);
-        glVertex3f(halfSize, halfSize, halfSize);
+    // Tył (-Z)
+    glNormal3f(0.0f, 0.0f, -1.0f);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f( h, -h, -h);
+    glTexCoord2f(1.0f, 0.0f); glVertex3f(-h, -h, -h);
+    glTexCoord2f(1.0f, 1.0f); glVertex3f(-h,  h, -h);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f( h,  h, -h);
 
-        glNormal3f(0.0f, 1.0f, 0.0f);
-        glVertex3f(-halfSize, halfSize, halfSize);
-        glVertex3f(halfSize, halfSize, halfSize);
-        glVertex3f(halfSize, halfSize, -halfSize);
-        glVertex3f(-halfSize, halfSize, -halfSize);
+    // Lewa (-X)
+    glNormal3f(-1.0f, 0.0f, 0.0f);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-h, -h, -h);
+    glTexCoord2f(1.0f, 0.0f); glVertex3f(-h, -h,  h);
+    glTexCoord2f(1.0f, 1.0f); glVertex3f(-h,  h,  h);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(-h,  h, -h);
 
-        glNormal3f(0.0f, -1.0f, 0.0f);
-        glVertex3f(-halfSize, -halfSize, -halfSize);
-        glVertex3f(halfSize, -halfSize, -halfSize);
-        glVertex3f(halfSize, -halfSize, halfSize);
-        glVertex3f(-halfSize, -halfSize, halfSize);
-        glEnd();
-    } else {
-        glBegin(GL_LINE_LOOP);
-        glVertex3f(-halfSize, -halfSize, halfSize);
-        glVertex3f(halfSize, -halfSize, halfSize);
-        glVertex3f(halfSize, halfSize, halfSize);
-        glVertex3f(-halfSize, halfSize, halfSize);
-        glEnd();
+    // Prawa (+X)
+    glNormal3f(1.0f, 0.0f, 0.0f);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f( h, -h,  h);
+    glTexCoord2f(1.0f, 0.0f); glVertex3f( h, -h, -h);
+    glTexCoord2f(1.0f, 1.0f); glVertex3f( h,  h, -h);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f( h,  h,  h);
 
-        glBegin(GL_LINE_LOOP);
-        glVertex3f(-halfSize, -halfSize, -halfSize);
-        glVertex3f(halfSize, -halfSize, -halfSize);
-        glVertex3f(halfSize, halfSize, -halfSize);
-        glVertex3f(-halfSize, halfSize, -halfSize);
-        glEnd();
+    // Góra (+Y)
+    glNormal3f(0.0f, 1.0f, 0.0f);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-h,  h,  h);
+    glTexCoord2f(1.0f, 0.0f); glVertex3f( h,  h,  h);
+    glTexCoord2f(1.0f, 1.0f); glVertex3f( h,  h, -h);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(-h,  h, -h);
 
-        glBegin(GL_LINES);
-        glVertex3f(-halfSize, -halfSize, halfSize);
-        glVertex3f(-halfSize, -halfSize, -halfSize);
-        glVertex3f(halfSize, -halfSize, halfSize);
-        glVertex3f(halfSize, -halfSize, -halfSize);
-        glVertex3f(halfSize, halfSize, halfSize);
-        glVertex3f(halfSize, halfSize, -halfSize);
-        glVertex3f(-halfSize, halfSize, halfSize);
-        glVertex3f(-halfSize, halfSize, -halfSize);
+    // Dół (-Y)
+    glNormal3f(0.0f, -1.0f, 0.0f);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-h, -h, -h);
+    glTexCoord2f(1.0f, 0.0f); glVertex3f( h, -h, -h);
+    glTexCoord2f(1.0f, 1.0f); glVertex3f( h, -h,  h);
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(-h, -h,  h);
+
+    glEnd();
+}
+
+// ===================== CylinderNode =====================
+
+CylinderNode::CylinderNode(float radius, float height, int slices)
+    : PrimitiveNode("Cylinder"), cylinderRadius(radius), cylinderHeight(height), cylinderSlices(slices) {}
+
+void CylinderNode::setRadius(float value) { cylinderRadius = value; }
+void CylinderNode::setHeight(float value) { cylinderHeight = value; }
+void CylinderNode::setSlices(int value)   { cylinderSlices = value > 3 ? value : 3; }
+float CylinderNode::radius() const { return cylinderRadius; }
+float CylinderNode::height() const { return cylinderHeight; }
+int   CylinderNode::slices() const { return cylinderSlices; }
+
+void CylinderNode::drawGeometry() const {
+    const float halfH = cylinderHeight * 0.5f;
+    const float TWO_PI = 2.0f * 3.14159265358979323846f;
+
+    // Powierzchnia boczna – normalna prostopadła do osi Y, UV: u=kąt, v=wysokość
+    glBegin(GL_TRIANGLE_STRIP);
+    for (int i = 0; i <= cylinderSlices; ++i) {
+        float t   = (float)i / (float)cylinderSlices;
+        float ang = t * TWO_PI;
+        float cx  = std::cos(ang);
+        float cz  = std::sin(ang);
+        float x   = cx * cylinderRadius;
+        float z   = cz * cylinderRadius;
+        // Normalna to kierunek od osi, niezależny od promienia
+        glNormal3f(cx, 0.0f, cz);
+        glTexCoord2f(t, 1.0f); glVertex3f(x,  halfH, z);
+        glTexCoord2f(t, 0.0f); glVertex3f(x, -halfH, z);
+    }
+    glEnd();
+
+    // Górna pokrywka (+Y), UV: (0.5 + cos/2, 0.5 + sin/2)
+    glBegin(GL_TRIANGLE_FAN);
+    glNormal3f(0.0f, 1.0f, 0.0f);
+    glTexCoord2f(0.5f, 0.5f);
+    glVertex3f(0.0f, halfH, 0.0f);
+    for (int i = 0; i <= cylinderSlices; ++i) {
+        float t   = (float)i / (float)cylinderSlices;
+        float ang = t * TWO_PI;
+        float cx  = std::cos(ang);
+        float cz  = std::sin(ang);
+        glTexCoord2f(0.5f + cx * 0.5f, 0.5f + cz * 0.5f);
+        glVertex3f(cx * cylinderRadius, halfH, cz * cylinderRadius);
+    }
+    glEnd();
+
+    // Dolna pokrywka (-Y), odwrotna kolejność wierzchołków dla właściwego culling
+    glBegin(GL_TRIANGLE_FAN);
+    glNormal3f(0.0f, -1.0f, 0.0f);
+    glTexCoord2f(0.5f, 0.5f);
+    glVertex3f(0.0f, -halfH, 0.0f);
+    for (int i = 0; i <= cylinderSlices; ++i) {
+        float t   = (float)i / (float)cylinderSlices;
+        float ang = -t * TWO_PI;
+        float cx  = std::cos(ang);
+        float cz  = std::sin(ang);
+        glTexCoord2f(0.5f + cx * 0.5f, 0.5f + cz * 0.5f);
+        glVertex3f(cx * cylinderRadius, -halfH, cz * cylinderRadius);
+    }
+    glEnd();
+}
+
+// ===================== SphereNode =====================
+
+SphereNode::SphereNode(float radius, int stacks, int slices)
+    : PrimitiveNode("Sphere"), sphereRadius(radius), sphereStacks(stacks), sphereSlices(slices) {}
+
+void SphereNode::setRadius(float value) { sphereRadius = value; }
+float SphereNode::radius() const { return sphereRadius; }
+
+// Sfera w układzie sferycznym: theta = biegun (0..pi), phi = długość (0..2pi).
+// Normalna = znormalizowana pozycja (sfera jednostkowa -> normal = direction).
+// UV: u = phi/(2*pi), v = theta/pi
+void SphereNode::drawGeometry() const {
+    const float PI     = 3.14159265358979323846f;
+    const float TWO_PI = 2.0f * PI;
+
+    for (int i = 0; i < sphereStacks; ++i) {
+        float theta1 = (float)i       / (float)sphereStacks * PI;
+        float theta2 = (float)(i + 1) / (float)sphereStacks * PI;
+
+        glBegin(GL_TRIANGLE_STRIP);
+        for (int j = 0; j <= sphereSlices; ++j) {
+            float phi = (float)j / (float)sphereSlices * TWO_PI;
+            float u   = (float)j / (float)sphereSlices;
+            float cp  = std::cos(phi);
+            float sp  = std::sin(phi);
+
+            // Dolny wiersz paska (theta2)
+            float v2 = (float)(i + 1) / (float)sphereStacks;
+            float st2 = std::sin(theta2);
+            float ct2 = std::cos(theta2);
+            float nx2 = st2 * cp, ny2 = ct2, nz2 = st2 * sp;
+            glTexCoord2f(u, v2);
+            glNormal3f(nx2, ny2, nz2);
+            glVertex3f(nx2 * sphereRadius, ny2 * sphereRadius, nz2 * sphereRadius);
+
+            // Górny wiersz paska (theta1)
+            float v1 = (float)i / (float)sphereStacks;
+            float st1 = std::sin(theta1);
+            float ct1 = std::cos(theta1);
+            float nx1 = st1 * cp, ny1 = ct1, nz1 = st1 * sp;
+            glTexCoord2f(u, v1);
+            glNormal3f(nx1, ny1, nz1);
+            glVertex3f(nx1 * sphereRadius, ny1 * sphereRadius, nz1 * sphereRadius);
+        }
         glEnd();
     }
 }
 
-CylinderNode::CylinderNode(float radius, float height, int slices) : PrimitiveNode("Cylinder"), cylinderRadius(radius), cylinderHeight(height), cylinderSlices(slices) {}
+// ===================== PlaneNode =====================
 
-void CylinderNode::setRadius(float value) { cylinderRadius = value; }
-void CylinderNode::setHeight(float value) { cylinderHeight = value; }
-void CylinderNode::setSlices(int value) { cylinderSlices = value > 3 ? value : 3; }
-float CylinderNode::radius() const { return cylinderRadius; }
-float CylinderNode::height() const { return cylinderHeight; }
-int CylinderNode::slices() const { return cylinderSlices; }
+PlaneNode::PlaneNode(float width, float depth)
+    : PrimitiveNode("Plane"), planeWidth(width), planeDepth(depth) {}
 
-void CylinderNode::drawGeometry(bool solid) const {
-    const float halfH = cylinderHeight * 0.5f;
-    const float TWO_PI = 2.0f * 3.14159265358979323846f;
+void PlaneNode::setSize(float w, float d) { planeWidth = w; planeDepth = d; }
 
-    if (solid) {
-        glBegin(GL_TRIANGLE_STRIP);
-        for (int i = 0; i <= cylinderSlices; ++i) {
-            float t = static_cast<float>(i) / static_cast<float>(cylinderSlices);
-            float ang = t * TWO_PI;
-            float x = std::cos(ang) * cylinderRadius;
-            float z = std::sin(ang) * cylinderRadius;
-            glNormal3f(x, 0.0f, z);
-            glVertex3f(x, halfH, z);
-            glVertex3f(x, -halfH, z);
-        }
-        glEnd();
+void PlaneNode::drawGeometry() const {
+    const float hw = planeWidth  * 0.5f;
+    const float hd = planeDepth  * 0.5f;
+    // Powtórzenie tekstury proporcjonalne do rozmiarów płaszczyzny
+    const float uMax = planeWidth;
+    const float vMax = planeDepth;
 
-        glBegin(GL_TRIANGLE_FAN);
-        glNormal3f(0.0f, 1.0f, 0.0f);
-        glVertex3f(0.0f, halfH, 0.0f);
-        for (int i = 0; i <= cylinderSlices; ++i) {
-            float t = static_cast<float>(i) / static_cast<float>(cylinderSlices);
-            float ang = t * TWO_PI;
-            float x = std::cos(ang) * cylinderRadius;
-            float z = std::sin(ang) * cylinderRadius;
-            glVertex3f(x, halfH, z);
-        }
-        glEnd();
-
-        glBegin(GL_TRIANGLE_FAN);
-        glNormal3f(0.0f, -1.0f, 0.0f);
-        glVertex3f(0.0f, -halfH, 0.0f);
-        for (int i = 0; i <= cylinderSlices; ++i) {
-            float t = static_cast<float>(i) / static_cast<float>(cylinderSlices);
-            float ang = -t * TWO_PI;
-            float x = std::cos(ang) * cylinderRadius;
-            float z = std::sin(ang) * cylinderRadius;
-            glVertex3f(x, -halfH, z);
-        }
-        glEnd();
-    } else {
-        glBegin(GL_LINE_LOOP);
-        for (int i = 0; i < cylinderSlices; ++i) {
-            float t = static_cast<float>(i) / static_cast<float>(cylinderSlices);
-            float ang = t * TWO_PI;
-            glVertex3f(std::cos(ang) * cylinderRadius, halfH, std::sin(ang) * cylinderRadius);
-        }
-        glEnd();
-
-        glBegin(GL_LINE_LOOP);
-        for (int i = 0; i < cylinderSlices; ++i) {
-            float t = static_cast<float>(i) / static_cast<float>(cylinderSlices);
-            float ang = t * TWO_PI;
-            glVertex3f(std::cos(ang) * cylinderRadius, -halfH, std::sin(ang) * cylinderRadius);
-        }
-        glEnd();
-
-        glBegin(GL_LINES);
-        for (int i = 0; i < cylinderSlices; ++i) {
-            float t = static_cast<float>(i) / static_cast<float>(cylinderSlices);
-            float ang = t * TWO_PI;
-            float x = std::cos(ang) * cylinderRadius;
-            float z = std::sin(ang) * cylinderRadius;
-            glVertex3f(x, -halfH, z);
-            glVertex3f(x, halfH, z);
-        }
-        glEnd();
-    }
+    glBegin(GL_QUADS);
+    glNormal3f(0.0f, 1.0f, 0.0f);
+    glTexCoord2f(0.0f,  0.0f); glVertex3f(-hw, 0.0f,  hd);
+    glTexCoord2f(uMax,  0.0f); glVertex3f( hw, 0.0f,  hd);
+    glTexCoord2f(uMax, vMax);  glVertex3f( hw, 0.0f, -hd);
+    glTexCoord2f(0.0f, vMax);  glVertex3f(-hw, 0.0f, -hd);
+    glEnd();
 }

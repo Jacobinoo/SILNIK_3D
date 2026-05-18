@@ -5,16 +5,19 @@ int main(int argc, char** argv) {
     Engine engine;
 
     engine.init(argc, argv);
-    engine.setWindowParams(800, 600, "Moj Silnik 3D - FreeGLUT");
-    // Ustawienia: 60 FPS, bufor głębi włączony, podwójne buforowanie włączone
-    engine.setGraphicsParams(60, true, true); 
-    engine.setClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+    engine.setWindowParams(800, 600, "Silnik 3D - FreeGLUT");
+    engine.setGraphicsParams(60, true, true);
+    engine.setClearColor(0.12f, 0.16f, 0.22f, 1.0f);
     engine.setProjection(ProjectionType::PERSPECTIVE);
-    // Informacje o sterowaniu
-    std::cout << "Sterowanie: WASD - przesuwanie celu kamery, Q/E - góra/dół\n";
-    std::cout << "Mysz: lewy-drag obraca, scroll zoom. Klawisze 1=Cube, 2=Cylinder, +/- zmiana FPS, p/o zmiana rzutowania, ESC wyjscie\n";
+
+    std::cout << "=== Silnik 3D ===\n";
+    std::cout << "Kamera:      WASD = ruch, Q/E = góra/dół\n";
+    std::cout << "             LPM + mysz = obrót, scroll = zoom\n";
+    std::cout << "Rendering:   M = siatka,  L = oswietlenie, G = cieniowanie\n";
+    std::cout << "Rzutowanie:  P = perspektywa, O = ortogonalne\n";
+    std::cout << "FPS:         + / -\n";
+    std::cout << "Wyjscie:     ESC\n";
 
     engine.run();
-
     return 0;
 }
