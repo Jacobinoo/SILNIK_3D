@@ -1,1 +1,11 @@
 /build
+/build_check
+.claude/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.o
+*.obj
+*.exe
+*.dll
