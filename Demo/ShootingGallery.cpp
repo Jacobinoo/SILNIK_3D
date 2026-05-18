@@ -8,7 +8,7 @@
 
 namespace {
     const float TARGET_RADIUS    = 0.50f;
-    const float HIT_TOLERANCE    = 1.35f;   // mnoznik promienia dla wykrywania trafienia
+    const float HIT_TOLERANCE    = 1.50f;   // mnoznik promienia dla wykrywania trafienia
     const float TARGET_LIFETIME  = 7.0f;
     const float RESPAWN_PAUSE    = 0.40f;
     const int   START_LIVES      = 5;

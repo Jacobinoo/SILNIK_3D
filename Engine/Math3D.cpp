@@ -126,22 +126,31 @@ Mat4 Mat4::orthographic(float left, float right, float bottom, float top, float 
 
 Mat4 Mat4::lookAt(const Vec3& eye, const Vec3& center, const Vec3& up) {
     Vec3 forward = normalize(center - eye);
-    Vec3 side = normalize(cross(forward, up));
-    Vec3 trueUp = cross(side, forward);
+    Vec3 side    = normalize(cross(forward, up));
+    Vec3 trueUp  = cross(side, forward);
 
+    // Macierz widoku: kolejne WIERSZE to bazowe wektory kamery w przestrzeni
+    // swiata (right, up, -forward). Czwarta kolumna to translacja eye do origin.
+    // (Wczesniejsza wersja zapisywala wektory jako KOLUMNY, czyli macierz
+    //  byla transponowana = wrenderowanie przesuniete wzgledem rzeczywistych
+    //  pozycji w przestrzeni 3D.)
     Mat4 result = Mat4::identity();
+    // Wiersz 0: prawo kamery (X po transformacji)
     result.at(0, 0) = side.x;
-    result.at(1, 0) = side.y;
-    result.at(2, 0) = side.z;
-    result.at(0, 1) = trueUp.x;
+    result.at(0, 1) = side.y;
+    result.at(0, 2) = side.z;
+    // Wiersz 1: gora kamery (Y po transformacji)
+    result.at(1, 0) = trueUp.x;
     result.at(1, 1) = trueUp.y;
-    result.at(2, 1) = trueUp.z;
-    result.at(0, 2) = -forward.x;
-    result.at(1, 2) = -forward.y;
+    result.at(1, 2) = trueUp.z;
+    // Wiersz 2: -forward (Z po transformacji - OpenGL patrzy w -Z)
+    result.at(2, 0) = -forward.x;
+    result.at(2, 1) = -forward.y;
     result.at(2, 2) = -forward.z;
-    result.at(0, 3) = -dot(side, eye);
-    result.at(1, 3) = -dot(trueUp, eye);
-    result.at(2, 3) = dot(forward, eye);
+    // Kolumna 3: -R * eye (przesuniecie aby eye trafil w origin kamery)
+    result.at(0, 3) = -dot(side,    eye);
+    result.at(1, 3) = -dot(trueUp,  eye);
+    result.at(2, 3) =  dot(forward, eye);
     return result;
 }
 
