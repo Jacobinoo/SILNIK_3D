@@ -27,9 +27,36 @@ void Texture::uploadToGPU(const std::vector<unsigned char>& data, int width, int
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 
-    // gluBuild2DMipmaps generuje wszystkie poziomy mipmap ręcznie
-    gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGB, width, height,
-                      GL_RGB, GL_UNSIGNED_BYTE, data.data());
+    // Własna generacja mipmap: uśrednianie kwadratów 2x2 dla każdego poziomu
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0,
+                 GL_RGB, GL_UNSIGNED_BYTE, data.data());
+
+    std::vector<unsigned char> src = data;
+    int mipW = width, mipH = height, level = 1;
+    while (mipW > 1 || mipH > 1) {
+        int newW = std::max(1, mipW / 2);
+        int newH = std::max(1, mipH / 2);
+        std::vector<unsigned char> dst((size_t)(newW * newH * 3));
+        for (int y = 0; y < newH; ++y) {
+            for (int x = 0; x < newW; ++x) {
+                int sx = x * 2, sy = y * 2;
+                for (int c = 0; c < 3; ++c) {
+                    // Uśredniamy do 4 pikseli (lub mniej na krawędzi)
+                    unsigned int sum = 0, count = 0;
+                    for (int dy = 0; dy < 2 && (sy + dy) < mipH; ++dy)
+                        for (int dx = 0; dx < 2 && (sx + dx) < mipW; ++dx) {
+                            sum += src[((sy + dy) * mipW + (sx + dx)) * 3 + c];
+                            ++count;
+                        }
+                    dst[(y * newW + x) * 3 + c] = (unsigned char)(sum / count);
+                }
+            }
+        }
+        glTexImage2D(GL_TEXTURE_2D, level, GL_RGB, newW, newH, 0,
+                     GL_RGB, GL_UNSIGNED_BYTE, dst.data());
+        src = std::move(dst);
+        mipW = newW; mipH = newH; ++level;
+    }
 
     glBindTexture(GL_TEXTURE_2D, 0);
     loaded = true;

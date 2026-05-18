@@ -231,12 +231,13 @@ void Engine::drawHUD() const {
     // Przełącz na projekcję 2D (piksele)
     glMatrixMode(GL_PROJECTION);
     glPushMatrix();
-    glLoadIdentity();
-    glOrtho(0, windowWidth, 0, windowHeight, -1, 1);
+    glLoadMatrixf(Mat4::orthographic(0.0f, (float)windowWidth,
+                                     0.0f, (float)windowHeight,
+                                     -1.0f, 1.0f).data());
 
     glMatrixMode(GL_MODELVIEW);
     glPushMatrix();
-    glLoadIdentity();
+    glLoadMatrixf(Mat4::identity().data());
 
     GLboolean depthOn = glIsEnabled(GL_DEPTH_TEST);
     GLboolean litOn   = glIsEnabled(GL_LIGHTING);
