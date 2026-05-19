@@ -30,6 +30,10 @@ public:
     void addChild(const std::shared_ptr<SceneNode>& child);
     const std::vector<std::shared_ptr<SceneNode>>& children() const;
 
+    // Widocznosc - gdy false, renderSelf jest pomijany (dzieci sa nadal rysowane)
+    void setVisible(bool v) { nodeVisible = v; }
+    bool isVisible() const  { return nodeVisible; }
+
     Mat4 localMatrix() const;
     Mat4 worldMatrix() const;
 
@@ -45,6 +49,7 @@ private:
     Vec3 localRotation;
     Vec3 localScale;
     std::vector<std::shared_ptr<SceneNode>> childNodes;
+    bool nodeVisible = true;
 };
 
 #endif

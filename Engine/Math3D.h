@@ -58,4 +58,11 @@ Vec3 transformVector(const Mat4& matrix, const Vec3& vector);
 bool raySphereIntersect(const Vec3& origin, const Vec3& direction,
                         const Vec3& center, float radius, float& outT);
 
+// Test przeciecia promienia z pionowym walcem (cylinder rownolegly do osi Y).
+// base = dolny srodek walca; walec rozciaga sie od base.y do base.y + height.
+// Zwraca najblizsze pozytywne t, jesli istnieje.
+bool rayCylinderIntersect(const Vec3& origin, const Vec3& direction,
+                          const Vec3& base, float radius, float height,
+                          float& outT);
+
 #endif

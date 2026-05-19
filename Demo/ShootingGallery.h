@@ -4,11 +4,11 @@
 #include "Engine/Engine.h"
 #include <memory>
 #include <random>
+#include <vector>
 
-// Gra: Strzelnica 3D z perspektywy pierwszej osoby w zamknietym pokoju.
-// Pokoj o wymiarach 20 x 6 x 30 (X x Y x Z), gracz porusza sie WASD po calej
-// powierzchni podlogi (ze sciennymi kolizjami). Cel-sfera pojawia sie
-// losowo w tylnej czesci pokoju, obraca i kolysze.
+// Gra: Strzelnica 3D z perspektywy pierwszej osoby.
+// Pokoj 20 x 6 x 30 z kolumnami-przeszkodami i ruchomymi celami.
+// Fale 1-3 celow naraz. Przeszkody blokuja zarowno ruch gracza jak i strzaly.
 class ShootingGallery {
 public:
     explicit ShootingGallery(Engine& engine);
@@ -19,18 +19,50 @@ public:
     void onReset();
 
 private:
+    // ---------- Wewnetrzne struktury ----------
+
+    // Pojedynczy cel: pozycja bazowa + opcjonalny ruch liniowy ping-pong.
+    struct Target {
+        Vec3  basePos;
+        Vec3  moveAxis;      // (0,0,0) = statyczny
+        float moveRange;     // amplituda (m)
+        float moveSpeed;     // czestosc (rad/s)
+        float movePhase;     // przesuniecie fazy (rad)
+        float bobPhase;
+        float spinAngle;
+        float spawnTime;
+        int   nodeIndex;     // indeks w targetNodePool_
+    };
+
+    // Przeszkoda: pionowy walec stojacy na podlodze.
+    struct Obstacle {
+        Vec3  base;          // dolny srodek (na podlodze)
+        float radius;
+        float height;
+    };
+
+    // ---------- Pomocnicze metody ----------
+
     void buildRoom();
-    void spawnTarget();
+    void buildObstacles();
+    void initTargetPool();
+    void spawnWave();
     void resetGame();
-    void restoreTargetMaterial();
-    Vec3 currentTargetWorldPos() const;
+
+    Vec3 currentTargetPos(const Target& t) const;
+    bool isInsideObstacle(const Vec3& pos, float margin) const;
+    bool obstacleBlocksRay(const Vec3& origin, const Vec3& dir, float maxT) const;
+    void applyObstacleCollision();
+    Material defaultTargetMaterial() const;
+
+    // ---------- Pola ----------
 
     Engine& engine_;
 
     Vec3 playerEye_;
     Vec3 playerEyeHome_;
 
-    // Sciany pokoju (6 plaszczyzn)
+    // Pokoj
     std::shared_ptr<PlaneNode>  floor_;
     std::shared_ptr<PlaneNode>  ceiling_;
     std::shared_ptr<PlaneNode>  backWall_;
@@ -38,24 +70,27 @@ private:
     std::shared_ptr<PlaneNode>  leftWall_;
     std::shared_ptr<PlaneNode>  rightWall_;
 
-    // Cel
-    std::shared_ptr<SphereNode> target_;
+    // Przeszkody (kolumny)
+    std::vector<std::shared_ptr<CylinderNode>> obstacleNodes_;
+    std::vector<Obstacle> obstacles_;
+
+    // Pula sfer dla celow (rezerwujemy MAX_TARGETS sfer raz, ukrywamy nieuzywane)
+    std::vector<std::shared_ptr<SphereNode>> targetNodePool_;
+
+    // Aktywne cele (bieżąca fala)
+    std::vector<Target> targets_;
+
+    // Stan fali
+    float waveRespawnTimer_;
+    int   waveSize_;             // ile celow bylo w aktualnej fali (dla HUD)
 
     // Tekstury
-    std::shared_ptr<Texture>    floorTex_;
-    std::shared_ptr<Texture>    ceilingTex_;
-    std::shared_ptr<Texture>    wallTex_;
-    std::shared_ptr<Texture>    backWallTex_;
-    std::shared_ptr<Texture>    targetTex_;
-
-    // Stan celu
-    Vec3  targetPos_;
-    float targetRadius_;
-    float targetSpawnTime_;
-    float targetBobPhase_;
-    float targetSpinAngle_;
-    bool  targetAlive_;
-    float respawnTimer_;
+    std::shared_ptr<Texture> floorTex_;
+    std::shared_ptr<Texture> ceilingTex_;
+    std::shared_ptr<Texture> wallTex_;
+    std::shared_ptr<Texture> backWallTex_;
+    std::shared_ptr<Texture> obstacleTex_;
+    std::shared_ptr<Texture> targetTex_;
 
     // Stan gry
     int   score_;

@@ -46,7 +46,7 @@ Mat4 SceneNode::worldMatrix() const {
 
 void SceneNode::renderRecursive(const Mat4& parentMatrix) const {
     Mat4 world = parentMatrix * localMatrix();
-    renderSelf(world);
+    if (nodeVisible) renderSelf(world);
     for (const auto& child : childNodes) {
         child->renderRecursive(world);
     }

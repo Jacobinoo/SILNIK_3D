@@ -189,6 +189,42 @@ Vec3 transformVector(const Mat4& matrix, const Vec3& vector) {
     );
 }
 
+bool rayCylinderIntersect(const Vec3& origin, const Vec3& direction,
+                          const Vec3& base, float radius, float height,
+                          float& outT) {
+    // Walec pionowy: (P.x - base.x)^2 + (P.z - base.z)^2 = r^2
+    // Promien P(t) = origin + t*dir => kwadrowe rownanie w t
+    float ox = origin.x - base.x;
+    float oz = origin.z - base.z;
+    float dx = direction.x;
+    float dz = direction.z;
+
+    float a = dx*dx + dz*dz;
+    if (a < 1e-6f) return false;  // promien rownolegly do osi walca
+
+    float b = ox*dx + oz*dz;
+    float c = ox*ox + oz*oz - radius*radius;
+    float disc = b*b - a*c;
+    if (disc < 0.0f) return false;
+
+    float sqrtD = std::sqrt(disc);
+    float t1 = (-b - sqrtD) / a;
+    float t2 = (-b + sqrtD) / a;
+
+    // Wybieramy najblizsze pozytywne t z y w zakresie walca
+    for (int i = 0; i < 2; ++i) {
+        float t = (i == 0) ? t1 : t2;
+        if (t > 0.0001f) {
+            float y = origin.y + t * direction.y;
+            if (y >= base.y && y <= base.y + height) {
+                outT = t;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 bool raySphereIntersect(const Vec3& origin, const Vec3& direction,
                         const Vec3& center, float radius, float& outT) {
     // |origin + t*dir - center|^2 = radius^2

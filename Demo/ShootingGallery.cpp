@@ -9,84 +9,84 @@
 namespace {
     const float PI = 3.14159265358979323846f;
 
-    // Wymiary pokoju (przestrzen wewnetrzna miedzy scianami)
-    const float ROOM_X_HALF = 10.0f;        // X: [-10, +10]
-    const float ROOM_HEIGHT =  6.0f;        // Y: [0, 6]
-    const float ROOM_Z_MIN  = -20.0f;       // Z: [-20, +10]
+    // Wymiary pokoju
+    const float ROOM_X_HALF = 10.0f;
+    const float ROOM_HEIGHT =  6.0f;
+    const float ROOM_Z_MIN  = -20.0f;
     const float ROOM_Z_MAX  =  10.0f;
-    const float ROOM_LENGTH = ROOM_Z_MAX - ROOM_Z_MIN;   // 30
-    const float ROOM_WIDTH  = 2.0f * ROOM_X_HALF;        // 20
-    const float ROOM_Z_CENTER = (ROOM_Z_MIN + ROOM_Z_MAX) * 0.5f; // -5
-
-    // Bufor kolizji - jak blisko sciany moze podejsc gracz
+    const float ROOM_LENGTH = ROOM_Z_MAX - ROOM_Z_MIN;
+    const float ROOM_WIDTH  = 2.0f * ROOM_X_HALF;
+    const float ROOM_Z_CENTER = (ROOM_Z_MIN + ROOM_Z_MAX) * 0.5f;
     const float WALL_BUFFER = 0.5f;
 
-    // Strefa pojawiania celow (w tylnej polowie pokoju, z dala od bocznych scian)
-    const float SPAWN_X_HALF = 8.0f;        // X: [-8, +8]
+    // Strefa pojawiania celow
+    const float SPAWN_X_HALF = 8.0f;
     const float SPAWN_Y_MIN  = 1.0f;
     const float SPAWN_Y_MAX  = 4.0f;
     const float SPAWN_Z_MIN  = -18.0f;
     const float SPAWN_Z_MAX  = -4.0f;
-    const float MIN_SPAWN_DIST_FROM_PLAYER = 3.0f;
+    const float MIN_SPAWN_DIST_FROM_PLAYER = 3.5f;
+    const float MIN_SPAWN_DIST_FROM_OTHER  = 3.0f;
 
     // Parametry gry
+    const int   MAX_TARGETS      = 3;
     const float TARGET_RADIUS    = 0.50f;
-    const float HIT_TOLERANCE    = 1.50f;
-    const float TARGET_LIFETIME  = 8.0f;
-    const float RESPAWN_PAUSE    = 0.40f;
+    const float HIT_TOLERANCE    = 1.40f;
+    const float TARGET_LIFETIME  = 9.0f;
+    const float WAVE_RESPAWN     = 0.50f;
     const int   START_LIVES      = 5;
     const float FLASH_DURATION   = 0.35f;
     const float MAX_SHOOT_DIST   = 100.0f;
-    const float PLAYER_HEIGHT    = 1.75f;
+
+    // Gracz
+    const float PLAYER_HEIGHT     = 1.75f;
+    const float PLAYER_RADIUS     = 0.35f;
     const float PLAYER_MOVE_SPEED = 4.5f;
 
-    Material defaultTargetMaterial() {
-        return Material(
-            Vec3(0.22f, 0.10f, 0.02f),
-            Vec3(0.98f, 0.50f, 0.08f),
-            Vec3(1.00f, 1.00f, 1.00f), 48.0f);
-    }
+    // Limity ruchu celow
+    const float MAX_MOVE_RANGE = 1.4f;
+}
+
+Material ShootingGallery::defaultTargetMaterial() const {
+    return Material(
+        Vec3(0.22f, 0.10f, 0.02f),
+        Vec3(0.98f, 0.50f, 0.08f),
+        Vec3(1.00f, 1.00f, 1.00f), 48.0f);
 }
 
 ShootingGallery::ShootingGallery(Engine& engine)
     : engine_(engine),
       playerEye_(0.0f, PLAYER_HEIGHT, 7.0f),
       playerEyeHome_(0.0f, PLAYER_HEIGHT, 7.0f),
-      // Sciany - rozmiary dopasowane do wymiarow pokoju
       floor_    (std::make_shared<PlaneNode>(ROOM_WIDTH,  ROOM_LENGTH)),
       ceiling_  (std::make_shared<PlaneNode>(ROOM_WIDTH,  ROOM_LENGTH)),
       backWall_ (std::make_shared<PlaneNode>(ROOM_WIDTH,  ROOM_HEIGHT)),
       frontWall_(std::make_shared<PlaneNode>(ROOM_WIDTH,  ROOM_HEIGHT)),
       leftWall_ (std::make_shared<PlaneNode>(ROOM_HEIGHT, ROOM_LENGTH)),
       rightWall_(std::make_shared<PlaneNode>(ROOM_HEIGHT, ROOM_LENGTH)),
-      target_   (std::make_shared<SphereNode>(TARGET_RADIUS, 20, 32)),
-      floorTex_  (std::make_shared<Texture>()),
-      ceilingTex_(std::make_shared<Texture>()),
-      wallTex_   (std::make_shared<Texture>()),
-      backWallTex_(std::make_shared<Texture>()),
-      targetTex_ (std::make_shared<Texture>()),
-      targetPos_(0.0f, 2.0f, -8.0f),
-      targetRadius_(TARGET_RADIUS),
-      targetSpawnTime_(0.0f),
-      targetBobPhase_(0.0f),
-      targetSpinAngle_(0.0f),
-      targetAlive_(true),
-      respawnTimer_(0.0f),
+      waveRespawnTimer_(0.0f),
+      waveSize_(0),
+      floorTex_    (std::make_shared<Texture>()),
+      ceilingTex_  (std::make_shared<Texture>()),
+      wallTex_     (std::make_shared<Texture>()),
+      backWallTex_ (std::make_shared<Texture>()),
+      obstacleTex_ (std::make_shared<Texture>()),
+      targetTex_   (std::make_shared<Texture>()),
       score_(0), streak_(0), bestStreak_(0),
       lives_(START_LIVES), totalTime_(0.0f),
       gameOver_(false),
       hitFlashTime_(0.0f), missFlashTime_(0.0f), crosshairFlash_(0.0f),
       rng_((unsigned)std::chrono::steady_clock::now().time_since_epoch().count())
 {
+    targetTex_->generateCheckerboard(128,
+        1.00f, 0.30f, 0.10f,
+        1.00f, 0.95f, 0.50f, 6);
+
     buildRoom();
+    buildObstacles();
+    initTargetPool();
 
-    // Cel
-    target_->setMaterial(defaultTargetMaterial());
-    target_->setTexture(targetTex_);
-    target_->setPosition(targetPos_);
-    engine_.getSceneRoot()->addChild(target_);
-
-    // Swiatlo: lampa pod sufitem, mocno oswietla caly pokoj
+    // Swiatlo: lampa pod sufitem
     engine_.getPointLight()->setPosition(Vec3(0.0f, ROOM_HEIGHT - 0.5f, ROOM_Z_CENTER));
     engine_.getPointLight()->setAmbient(Vec3(0.20f, 0.20f, 0.22f));
     engine_.getPointLight()->setDiffuse(Vec3(1.00f, 0.95f, 0.85f));
@@ -99,77 +99,50 @@ ShootingGallery::ShootingGallery(Engine& engine)
     engine_.setFreeMouseLook(true);
     engine_.getCamera()->setFirstPerson(playerEye_, 0.0f, 0.0f);
 
-    spawnTarget();
+    spawnWave();
 }
 
 void ShootingGallery::buildRoom() {
-    // ---- Tekstury ----
     floorTex_->generateCheckerboard(256,
-        0.50f, 0.50f, 0.55f,
-        0.22f, 0.22f, 0.26f, 8);
+        0.50f, 0.50f, 0.55f, 0.22f, 0.22f, 0.26f, 8);
     ceilingTex_->generateCheckerboard(256,
-        0.20f, 0.20f, 0.26f,
-        0.10f, 0.10f, 0.14f, 6);
+        0.20f, 0.20f, 0.26f, 0.10f, 0.10f, 0.14f, 6);
     wallTex_->generateStripes(256,
-        0.42f, 0.35f, 0.28f,
-        0.30f, 0.22f, 0.18f, 16);
+        0.42f, 0.35f, 0.28f, 0.30f, 0.22f, 0.18f, 16);
     backWallTex_->generateCheckerboard(256,
-        0.55f, 0.30f, 0.20f,
-        0.30f, 0.15f, 0.10f, 4);
+        0.55f, 0.30f, 0.20f, 0.30f, 0.15f, 0.10f, 4);
 
-    // Material dla scian / sufitu (Phong)
-    Material wallMat(
-        Vec3(0.10f, 0.08f, 0.06f),
-        Vec3(0.65f, 0.55f, 0.45f),
-        Vec3(0.05f, 0.05f, 0.05f), 8.0f);
+    Material wallMat   (Vec3(0.10f,0.08f,0.06f), Vec3(0.65f,0.55f,0.45f), Vec3(0.05f,0.05f,0.05f),  8.0f);
+    Material floorMat  (Vec3(0.10f,0.10f,0.12f), Vec3(0.65f,0.65f,0.70f), Vec3(0.05f,0.05f,0.05f),  4.0f);
+    Material ceilingMat(Vec3(0.05f,0.05f,0.06f), Vec3(0.30f,0.30f,0.38f), Vec3(0.05f,0.05f,0.05f),  4.0f);
+    Material backMat   (Vec3(0.12f,0.06f,0.04f), Vec3(0.70f,0.45f,0.30f), Vec3(0.10f,0.05f,0.05f), 12.0f);
 
-    Material floorMat(
-        Vec3(0.10f, 0.10f, 0.12f),
-        Vec3(0.65f, 0.65f, 0.70f),
-        Vec3(0.05f, 0.05f, 0.05f), 4.0f);
-
-    Material ceilingMat(
-        Vec3(0.05f, 0.05f, 0.06f),
-        Vec3(0.30f, 0.30f, 0.38f),
-        Vec3(0.05f, 0.05f, 0.05f), 4.0f);
-
-    Material backMat(
-        Vec3(0.12f, 0.06f, 0.04f),
-        Vec3(0.70f, 0.45f, 0.30f),
-        Vec3(0.10f, 0.05f, 0.05f), 12.0f);
-
-    // ---- Podloga (normal +Y, bez rotacji) ----
-    floor_->setPosition(Vec3(0.0f, 0.0f, ROOM_Z_CENTER));
+    floor_->setPosition(Vec3(0, 0, ROOM_Z_CENTER));
     floor_->setMaterial(floorMat);
     floor_->setTexture(floorTex_);
 
-    // ---- Sufit (rotacja 180 wokol X -> normal -Y, patrzy w dol) ----
-    ceiling_->setPosition(Vec3(0.0f, ROOM_HEIGHT, ROOM_Z_CENTER));
-    ceiling_->setRotation(Vec3(PI, 0.0f, 0.0f));
+    ceiling_->setPosition(Vec3(0, ROOM_HEIGHT, ROOM_Z_CENTER));
+    ceiling_->setRotation(Vec3(PI, 0, 0));
     ceiling_->setMaterial(ceilingMat);
     ceiling_->setTexture(ceilingTex_);
 
-    // ---- Sciana tylna (Z = ROOM_Z_MIN, rotacja +90 wokol X -> normal +Z) ----
-    backWall_->setPosition(Vec3(0.0f, ROOM_HEIGHT * 0.5f, ROOM_Z_MIN));
-    backWall_->setRotation(Vec3(0.5f * PI, 0.0f, 0.0f));
+    backWall_->setPosition(Vec3(0, ROOM_HEIGHT * 0.5f, ROOM_Z_MIN));
+    backWall_->setRotation(Vec3(0.5f * PI, 0, 0));
     backWall_->setMaterial(backMat);
     backWall_->setTexture(backWallTex_);
 
-    // ---- Sciana frontowa (Z = ROOM_Z_MAX, rotacja -90 wokol X -> normal -Z) ----
-    frontWall_->setPosition(Vec3(0.0f, ROOM_HEIGHT * 0.5f, ROOM_Z_MAX));
-    frontWall_->setRotation(Vec3(-0.5f * PI, 0.0f, 0.0f));
+    frontWall_->setPosition(Vec3(0, ROOM_HEIGHT * 0.5f, ROOM_Z_MAX));
+    frontWall_->setRotation(Vec3(-0.5f * PI, 0, 0));
     frontWall_->setMaterial(wallMat);
     frontWall_->setTexture(wallTex_);
 
-    // ---- Sciana lewa (X = -ROOM_X_HALF, rotacja -90 wokol Z -> normal +X) ----
     leftWall_->setPosition(Vec3(-ROOM_X_HALF, ROOM_HEIGHT * 0.5f, ROOM_Z_CENTER));
-    leftWall_->setRotation(Vec3(0.0f, 0.0f, -0.5f * PI));
+    leftWall_->setRotation(Vec3(0, 0, -0.5f * PI));
     leftWall_->setMaterial(wallMat);
     leftWall_->setTexture(wallTex_);
 
-    // ---- Sciana prawa (X = +ROOM_X_HALF, rotacja +90 wokol Z -> normal -X) ----
     rightWall_->setPosition(Vec3(ROOM_X_HALF, ROOM_HEIGHT * 0.5f, ROOM_Z_CENTER));
-    rightWall_->setRotation(Vec3(0.0f, 0.0f, 0.5f * PI));
+    rightWall_->setRotation(Vec3(0, 0, 0.5f * PI));
     rightWall_->setMaterial(wallMat);
     rightWall_->setTexture(wallTex_);
 
@@ -182,39 +155,185 @@ void ShootingGallery::buildRoom() {
     root->addChild(rightWall_);
 }
 
-Vec3 ShootingGallery::currentTargetWorldPos() const {
-    Vec3 pos = targetPos_;
-    pos.y += 0.18f * std::sin(targetBobPhase_ * 2.2f);
+void ShootingGallery::buildObstacles() {
+    obstacleTex_->generateStripes(128,
+        0.50f, 0.50f, 0.55f, 0.30f, 0.30f, 0.35f, 8);
+
+    Material pillarMat(
+        Vec3(0.12f, 0.12f, 0.14f),
+        Vec3(0.55f, 0.55f, 0.60f),
+        Vec3(0.30f, 0.30f, 0.30f), 24.0f);
+
+    // Definicje kolumn w pokoju
+    struct ObsDef { Vec3 base; float radius; float height; };
+    std::vector<ObsDef> defs = {
+        { Vec3(-4.0f, 0.0f,  -7.5f), 0.55f, 4.0f },
+        { Vec3( 4.5f, 0.0f, -10.5f), 0.55f, 4.0f },
+        { Vec3( 0.0f, 0.0f, -14.0f), 0.65f, 4.5f },
+        { Vec3(-6.5f, 0.0f, -16.0f), 0.50f, 3.5f },
+    };
+
+    for (const auto& def : defs) {
+        auto node = std::make_shared<CylinderNode>(def.radius, def.height, 28);
+        // CylinderNode rysuje sie wzdluz Y od -h/2 do +h/2, wiec pozycja = base.y + h/2
+        node->setPosition(Vec3(def.base.x, def.base.y + def.height * 0.5f, def.base.z));
+        node->setMaterial(pillarMat);
+        node->setTexture(obstacleTex_);
+        engine_.getSceneRoot()->addChild(node);
+        obstacleNodes_.push_back(node);
+
+        Obstacle obs{ def.base, def.radius, def.height };
+        obstacles_.push_back(obs);
+    }
+}
+
+void ShootingGallery::initTargetPool() {
+    for (int i = 0; i < MAX_TARGETS; ++i) {
+        auto node = std::make_shared<SphereNode>(TARGET_RADIUS, 20, 32);
+        node->setMaterial(defaultTargetMaterial());
+        node->setTexture(targetTex_);
+        node->setVisible(false);
+        engine_.getSceneRoot()->addChild(node);
+        targetNodePool_.push_back(node);
+    }
+}
+
+Vec3 ShootingGallery::currentTargetPos(const Target& t) const {
+    Vec3 pos = t.basePos;
+    if (t.moveRange > 0.01f) {
+        pos += t.moveAxis * (t.moveRange * std::sin(totalTime_ * t.moveSpeed + t.movePhase));
+    }
+    pos.y += 0.18f * std::sin(t.bobPhase * 2.2f);
     return pos;
 }
 
-void ShootingGallery::restoreTargetMaterial() {
-    target_->setMaterial(defaultTargetMaterial());
+bool ShootingGallery::isInsideObstacle(const Vec3& pos, float margin) const {
+    for (const auto& obs : obstacles_) {
+        float dx = pos.x - obs.base.x;
+        float dz = pos.z - obs.base.z;
+        float distSq = dx*dx + dz*dz;
+        float minDist = obs.radius + margin;
+        if (distSq < minDist * minDist) {
+            // sprawdz tez zakres Y
+            if (pos.y + margin >= obs.base.y &&
+                pos.y - margin <= obs.base.y + obs.height) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
-void ShootingGallery::spawnTarget() {
+bool ShootingGallery::obstacleBlocksRay(const Vec3& origin, const Vec3& dir, float maxT) const {
+    for (const auto& obs : obstacles_) {
+        float t;
+        if (rayCylinderIntersect(origin, dir, obs.base, obs.radius, obs.height, t)) {
+            if (t > 0.0001f && t < maxT) return true;
+        }
+    }
+    return false;
+}
+
+void ShootingGallery::applyObstacleCollision() {
+    for (const auto& obs : obstacles_) {
+        float dx = playerEye_.x - obs.base.x;
+        float dz = playerEye_.z - obs.base.z;
+        float distSq = dx*dx + dz*dz;
+        float minDist = obs.radius + PLAYER_RADIUS;
+        if (distSq < minDist * minDist) {
+            float dist = std::sqrt(distSq);
+            if (dist < 0.0001f) {
+                // graniczny przypadek - wepchnij w arbitralna strone
+                playerEye_.x += minDist;
+            } else {
+                float push = (minDist - dist) / dist;
+                playerEye_.x += dx * push;
+                playerEye_.z += dz * push;
+            }
+        }
+    }
+}
+
+void ShootingGallery::spawnWave() {
+    // Rozmiar fali: czesciej 1, czasem 2, rzadziej 3
+    std::uniform_real_distribution<float> distR(0.0f, 1.0f);
+    float r = distR(rng_);
+    waveSize_ = (r < 0.50f) ? 1 : (r < 0.85f) ? 2 : 3;
+
+    // Schowaj wszystkie sfery z puli
+    for (auto& node : targetNodePool_) node->setVisible(false);
+    targets_.clear();
+
     std::uniform_real_distribution<float> distX(-SPAWN_X_HALF, SPAWN_X_HALF);
     std::uniform_real_distribution<float> distY(SPAWN_Y_MIN, SPAWN_Y_MAX);
     std::uniform_real_distribution<float> distZ(SPAWN_Z_MIN, SPAWN_Z_MAX);
 
-    // Probujemy znalezc pozycje co najmniej MIN_SPAWN_DIST_FROM_PLAYER od gracza
-    for (int attempt = 0; attempt < 30; ++attempt) {
-        Vec3 candidate(distX(rng_), distY(rng_), distZ(rng_));
-        if (length(candidate - playerEye_) >= MIN_SPAWN_DIST_FROM_PLAYER) {
-            targetPos_ = candidate;
+    for (int i = 0; i < waveSize_; ++i) {
+        Target t;
+        t.nodeIndex = i;
+        t.spawnTime = totalTime_;
+        t.bobPhase  = 0.0f;
+        t.spinAngle = 0.0f;
+        t.movePhase = distR(rng_) * 6.28f;
+
+        // Wybierz tryb ruchu
+        float mr = distR(rng_);
+        if (mr < 0.50f) {
+            t.moveAxis  = Vec3(0, 0, 0);
+            t.moveRange = 0.0f;
+            t.moveSpeed = 0.0f;
+        } else if (mr < 0.80f) {
+            t.moveAxis  = Vec3(1, 0, 0);
+            t.moveRange = MAX_MOVE_RANGE;
+            t.moveSpeed = 0.9f + distR(rng_) * 0.6f;
+        } else {
+            t.moveAxis  = Vec3(0, 0, 1);
+            t.moveRange = MAX_MOVE_RANGE * 0.8f;
+            t.moveSpeed = 0.9f + distR(rng_) * 0.7f;
+        }
+
+        // Znajdz waznosc pozycje: nie wewnatrz przeszkody (uwzgledniajac caly zakres ruchu),
+        // dostatecznie daleko od gracza i innych celow.
+        bool found = false;
+        for (int attempt = 0; attempt < 50; ++attempt) {
+            Vec3 candidate(distX(rng_), distY(rng_), distZ(rng_));
+
+            if (length(candidate - playerEye_) < MIN_SPAWN_DIST_FROM_PLAYER) continue;
+
+            // Margin uwzglednia promien celu, pelen zakres ruchu i mala rezerwe
+            float margin = TARGET_RADIUS + t.moveRange + 0.25f;
+            if (isInsideObstacle(candidate, margin)) continue;
+
+            bool tooClose = false;
+            for (const auto& other : targets_) {
+                if (length(candidate - other.basePos) < MIN_SPAWN_DIST_FROM_OTHER) {
+                    tooClose = true; break;
+                }
+            }
+            if (tooClose) continue;
+
+            t.basePos = candidate;
+            found = true;
             break;
         }
-        if (attempt == 29) {
-            targetPos_ = candidate;  // fallback
+
+        if (!found) {
+            // Fallback: stacjonarny cel w bezpiecznym miejscu
+            t.moveAxis = Vec3(0, 0, 0);
+            t.moveRange = 0;
+            t.basePos = Vec3(0, 2.5f, -6.0f);
         }
+
+        auto& node = targetNodePool_[t.nodeIndex];
+        node->setVisible(true);
+        node->setMaterial(defaultTargetMaterial());
+        node->setPosition(currentTargetPos(t));
+        node->setRotation(Vec3(0, 0, 0));
+
+        targets_.push_back(t);
     }
 
-    target_->setPosition(targetPos_);
-    targetSpawnTime_ = totalTime_;
-    targetBobPhase_  = 0.0f;
-    targetAlive_     = true;
-    respawnTimer_    = 0.0f;
-    restoreTargetMaterial();
+    waveRespawnTimer_ = 0.0f;
 }
 
 void ShootingGallery::resetGame() {
@@ -228,30 +347,29 @@ void ShootingGallery::resetGame() {
     crosshairFlash_ = 0.0f;
     playerEye_     = playerEyeHome_;
     engine_.setCameraYawPitch(0.0f, 0.0f);
-    spawnTarget();
+    spawnWave();
 }
 
 void ShootingGallery::onUpdate(float dt) {
     if (!gameOver_) {
-        // Ruch gracza WASD na plaszczyznie XZ, sztywno na wysokosci PLAYER_HEIGHT
+        // Ruch gracza WASD na plaszczyznie XZ
         float yaw = engine_.getCameraYaw();
         Vec3 fwd(std::sin(yaw), 0.0f, -std::cos(yaw));
         Vec3 rgt(std::cos(yaw), 0.0f,  std::sin(yaw));
-
         float speed = PLAYER_MOVE_SPEED * dt;
         if (engine_.isKeyDown('w') || engine_.isKeyDown('W')) playerEye_ += fwd * speed;
         if (engine_.isKeyDown('s') || engine_.isKeyDown('S')) playerEye_ -= fwd * speed;
         if (engine_.isKeyDown('a') || engine_.isKeyDown('A')) playerEye_ -= rgt * speed;
         if (engine_.isKeyDown('d') || engine_.isKeyDown('D')) playerEye_ += rgt * speed;
 
-        // Kolizje ze scianami pokoju
-        const float xMin = -ROOM_X_HALF + WALL_BUFFER;
-        const float xMax =  ROOM_X_HALF - WALL_BUFFER;
-        const float zMin =  ROOM_Z_MIN  + WALL_BUFFER;
-        const float zMax =  ROOM_Z_MAX  - WALL_BUFFER;
+        // Kolizje z przeszkodami
+        applyObstacleCollision();
 
-        playerEye_.x = std::max(xMin, std::min(xMax, playerEye_.x));
-        playerEye_.z = std::max(zMin, std::min(zMax, playerEye_.z));
+        // Kolizje ze scianami pokoju (po przeszkodach - aby nie wychodzic poza pokoj)
+        playerEye_.x = std::max(-ROOM_X_HALF + WALL_BUFFER,
+                       std::min( ROOM_X_HALF - WALL_BUFFER, playerEye_.x));
+        playerEye_.z = std::max( ROOM_Z_MIN  + WALL_BUFFER,
+                       std::min( ROOM_Z_MAX  - WALL_BUFFER, playerEye_.z));
         playerEye_.y = PLAYER_HEIGHT;
     }
 
@@ -261,42 +379,55 @@ void ShootingGallery::onUpdate(float dt) {
     if (gameOver_) return;
 
     totalTime_       += dt;
-    targetBobPhase_  += dt;
-    targetSpinAngle_ += dt * 1.4f;
     hitFlashTime_     = std::max(0.0f, hitFlashTime_   - dt);
     missFlashTime_    = std::max(0.0f, missFlashTime_  - dt);
     crosshairFlash_   = std::max(0.0f, crosshairFlash_ - dt);
 
-    if (!targetAlive_ && respawnTimer_ > 0.0f) {
-        respawnTimer_ -= dt;
-        if (respawnTimer_ <= 0.0f) spawnTarget();
+    // Respawn fali po jej wyczyszczeniu/wygasnieciu
+    if (targets_.empty()) {
+        if (waveRespawnTimer_ > 0.0f) {
+            waveRespawnTimer_ -= dt;
+            if (waveRespawnTimer_ <= 0.0f) spawnWave();
+        } else {
+            waveRespawnTimer_ = WAVE_RESPAWN;
+        }
         return;
     }
 
-    if (targetAlive_) {
-        Vec3 displayPos = currentTargetWorldPos();
-        target_->setPosition(displayPos);
-        target_->setRotation(Vec3(0.0f, targetSpinAngle_, 0.0f));
+    // Aktualizacja celow
+    for (size_t i = 0; i < targets_.size(); ) {
+        Target& t = targets_[i];
+        t.bobPhase  += dt;
+        t.spinAngle += dt * 1.4f;
 
-        float elapsed = totalTime_ - targetSpawnTime_;
+        auto& node = targetNodePool_[t.nodeIndex];
+        node->setPosition(currentTargetPos(t));
+        node->setRotation(Vec3(0, t.spinAngle, 0));
+
+        float elapsed = totalTime_ - t.spawnTime;
         if (elapsed > TARGET_LIFETIME) {
+            // Cel wygasnal - kara
             --lives_;
             streak_ = 0;
             missFlashTime_ = FLASH_DURATION;
+            node->setVisible(false);
+            targets_.erase(targets_.begin() + i);
             if (lives_ <= 0) {
                 gameOver_ = true;
-                targetAlive_ = false;
-            } else {
-                spawnTarget();
+                for (auto& n : targetNodePool_) n->setVisible(false);
+                targets_.clear();
+                return;
             }
+            continue;
         }
+        ++i;
     }
 }
 
 void ShootingGallery::onShoot() {
-    if (gameOver_ || !targetAlive_) return;
+    if (gameOver_ || targets_.empty()) return;
 
-    // Odswiez kamere najnowszym yaw/pitch (mysz mogla sie poruszyc miedzy klatkami)
+    // Odswiez kamere najnowszym yaw/pitch z mysz przed raycastem
     engine_.getCamera()->setFirstPerson(
         playerEye_, engine_.getCameraYaw(), engine_.getCameraPitch());
 
@@ -305,30 +436,43 @@ void ShootingGallery::onShoot() {
 
     crosshairFlash_ = 0.20f;
 
-    float t = 0.0f;
-    Vec3 spherePos = currentTargetWorldPos();
+    // Znajdz najblizszy trafiony cel
+    float closestT = MAX_SHOOT_DIST;
+    int   hitIdx = -1;
+    for (size_t i = 0; i < targets_.size(); ++i) {
+        Vec3 pos = currentTargetPos(targets_[i]);
+        float t;
+        if (raySphereIntersect(origin, dir, pos,
+                               TARGET_RADIUS * HIT_TOLERANCE, t)
+            && t > 0.0f && t < closestT) {
+            closestT = t;
+            hitIdx = (int)i;
+        }
+    }
 
-    if (raySphereIntersect(origin, dir, spherePos,
-                           targetRadius_ * HIT_TOLERANCE, t)
-        && t < MAX_SHOOT_DIST) {
+    // Czy przeszkoda blokuje promien przed celem?
+    if (hitIdx >= 0 && obstacleBlocksRay(origin, dir, closestT)) {
+        hitIdx = -1;
+    }
+
+    if (hitIdx >= 0) {
         ++score_;
         ++streak_;
         if (streak_ > bestStreak_) bestStreak_ = streak_;
         if (streak_ % 5 == 0 && lives_ < 9) ++lives_;
-
         hitFlashTime_ = FLASH_DURATION;
-        targetAlive_  = false;
-        respawnTimer_ = RESPAWN_PAUSE;
 
-        target_->setMaterial(Material(
-            Vec3(0.05f, 0.25f, 0.05f),
-            Vec3(0.15f, 1.00f, 0.20f),
-            Vec3(1.00f, 1.00f, 1.00f), 96.0f));
+        targetNodePool_[targets_[hitIdx].nodeIndex]->setVisible(false);
+        targets_.erase(targets_.begin() + hitIdx);
     } else {
         --lives_;
         streak_ = 0;
         missFlashTime_ = FLASH_DURATION;
-        if (lives_ <= 0) gameOver_ = true;
+        if (lives_ <= 0) {
+            gameOver_ = true;
+            for (auto& n : targetNodePool_) n->setVisible(false);
+            targets_.clear();
+        }
     }
 }
 
@@ -381,15 +525,25 @@ void ShootingGallery::onHUD() {
     glBegin(GL_POINTS); glVertex2i(cx, cy); glEnd();
     glPointSize(1.0f);
 
-    // Statystyki
-    int rx = W - 220;
+    // ---- Statystyki (prawa gora) ----
+    int rx = W - 230;
     int ry = H - 22;
+
+    // Cele pozostale w fali
+    int alive = (int)targets_.size();
+    glColor3f(1.00f, 0.80f, 0.40f);
+    engine_.drawStringLarge(rx, ry,
+        "CELE: " + std::to_string(alive) + " / " + std::to_string(waveSize_));
+    ry -= 28;
+
     glColor3f(0.55f, 1.00f, 0.55f);
     engine_.drawStringLarge(rx, ry, "WYNIK: " + std::to_string(score_));
     ry -= 28;
+
     glColor3f(1.00f, 0.55f, 0.55f);
     engine_.drawStringLarge(rx, ry, "ZYCIA: " + std::to_string(lives_));
-    ry -= 28;
+    ry -= 26;
+
     glColor3f(0.85f, 0.85f, 0.45f);
     int   sec  = (int)totalTime_;
     int   csec = (int)((totalTime_ - sec) * 100);
@@ -397,6 +551,7 @@ void ShootingGallery::onHUD() {
     std::snprintf(buf, sizeof(buf), "CZAS: %02d:%02d", sec, csec);
     engine_.drawString(rx, ry, buf);
     ry -= 18;
+
     if (streak_ >= 2) {
         glColor3f(1.00f, 0.65f, 0.30f);
         engine_.drawString(rx, ry, "SERIA: " + std::to_string(streak_)
@@ -406,22 +561,27 @@ void ShootingGallery::onHUD() {
         engine_.drawString(rx, ry, "Rekord serii: " + std::to_string(bestStreak_));
     }
 
-    // Pasek czasu zycia celu
-    if (targetAlive_ && !gameOver_) {
-        float lifeLeft = 1.0f - (totalTime_ - targetSpawnTime_) / TARGET_LIFETIME;
-        if (lifeLeft < 0.0f) lifeLeft = 0.0f;
+    // Pasek czasu zycia (najkrotszy z aktualnych celow)
+    if (!targets_.empty() && !gameOver_) {
+        float minLifeLeft = 1.0f;
+        for (const auto& t : targets_) {
+            float ll = 1.0f - (totalTime_ - t.spawnTime) / TARGET_LIFETIME;
+            if (ll < minLifeLeft) minLifeLeft = ll;
+        }
+        if (minLifeLeft < 0.0f) minLifeLeft = 0.0f;
+
         int barX = cx - 80, barY = 36, barW = 160, barH = 10;
         glColor3f(0.15f, 0.15f, 0.15f);
         glBegin(GL_QUADS);
         glVertex2i(barX-1, barY-1); glVertex2i(barX+barW+1, barY-1);
         glVertex2i(barX+barW+1, barY+barH+1); glVertex2i(barX-1, barY+barH+1);
         glEnd();
-        float fr = (lifeLeft < 0.5f) ? 1.0f : (1.0f - lifeLeft) * 2.0f;
-        float fg = (lifeLeft > 0.5f) ? 1.0f : lifeLeft * 2.0f;
+        float fr = (minLifeLeft < 0.5f) ? 1.0f : (1.0f - minLifeLeft) * 2.0f;
+        float fg = (minLifeLeft > 0.5f) ? 1.0f : minLifeLeft * 2.0f;
         glColor3f(fr, fg, 0.10f);
         glBegin(GL_QUADS);
-        glVertex2i(barX, barY); glVertex2i(barX + (int)(barW * lifeLeft), barY);
-        glVertex2i(barX + (int)(barW * lifeLeft), barY + barH); glVertex2i(barX, barY + barH);
+        glVertex2i(barX, barY); glVertex2i(barX + (int)(barW * minLifeLeft), barY);
+        glVertex2i(barX + (int)(barW * minLifeLeft), barY + barH); glVertex2i(barX, barY + barH);
         glEnd();
     }
 
