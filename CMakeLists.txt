@@ -32,7 +32,10 @@ set(ENGINE_SOURCES
 )
 
 set(DEMO_SOURCES
-    Demo/ShootingGallery.cpp
+    Demo/Room.cpp         # Osoba 1
+    Demo/Obstacles.cpp    # Osoba 2
+    Demo/Targets.cpp      # Osoba 3
+    Demo/Gameplay.cpp     # Osoba 4
 )
 
 set(SOURCES
