@@ -107,6 +107,7 @@ private:
     float hitFlashTime_;
     float missFlashTime_;
     float crosshairFlash_;
+    float bonusFlashTime_;
 
     std::mt19937 rng_;
 };

@@ -31,7 +31,8 @@ namespace {
     const int   MAX_TARGETS      = 3;
     const float TARGET_RADIUS    = 0.50f;
     const float HIT_TOLERANCE    = 1.40f;
-    const float TARGET_LIFETIME  = 3.0f;     // bylo 9.0 - skrocone o ok. 67%
+    const float TARGET_LIFETIME  = 3.45f;    // 3.0 * 1.15 (po +15% bonusie)
+    const float WAVE_HIT_BONUS   = 2.0f;     // +2s dla pozostalych celow w fali po trafieniu
     const float WAVE_RESPAWN     = 0.50f;
     const int   START_LIVES      = 2;        // bylo 5 - trudniej
     const float FLASH_DURATION   = 0.35f;
@@ -74,7 +75,8 @@ ShootingGallery::ShootingGallery(Engine& engine)
       score_(0), streak_(0), bestStreak_(0),
       lives_(START_LIVES), totalTime_(0.0f),
       gameOver_(false),
-      hitFlashTime_(0.0f), missFlashTime_(0.0f), crosshairFlash_(0.0f),
+      hitFlashTime_(0.0f), missFlashTime_(0.0f),
+      crosshairFlash_(0.0f), bonusFlashTime_(0.0f),
       rng_((unsigned)std::chrono::steady_clock::now().time_since_epoch().count())
 {
     // ---- Globalny ambient (silny, zeby ciemne katy nie byly czarne) ----
@@ -564,7 +566,7 @@ void ShootingGallery::resetGame() {
     lives_ = START_LIVES;
     totalTime_ = 0.0f;
     gameOver_ = false;
-    hitFlashTime_ = missFlashTime_ = crosshairFlash_ = 0.0f;
+    hitFlashTime_ = missFlashTime_ = crosshairFlash_ = bonusFlashTime_ = 0.0f;
     playerEye_ = playerEyeHome_;
     engine_.setCameraYawPitch(0.0f, 0.0f);
     spawnWave();
@@ -599,6 +601,7 @@ void ShootingGallery::onUpdate(float dt) {
     hitFlashTime_   = std::max(0.0f, hitFlashTime_   - dt);
     missFlashTime_  = std::max(0.0f, missFlashTime_  - dt);
     crosshairFlash_ = std::max(0.0f, crosshairFlash_ - dt);
+    bonusFlashTime_ = std::max(0.0f, bonusFlashTime_ - dt);
 
     if (targets_.empty()) {
         if (waveRespawnTimer_ > 0.0f) {
@@ -673,6 +676,15 @@ void ShootingGallery::onShoot() {
         hitFlashTime_ = FLASH_DURATION;
         targetNodePool_[targets_[hitIdx].nodeIndex]->setVisible(false);
         targets_.erase(targets_.begin() + hitIdx);
+
+        // BONUS: jezeli zostaly cele w fali, dodaj kazdemu +WAVE_HIT_BONUS sek.
+        // Robimy to przez przesuniecie spawnTime do przodu - timeout sie odroci.
+        if (!targets_.empty()) {
+            for (auto& remaining : targets_) {
+                remaining.spawnTime += WAVE_HIT_BONUS;
+            }
+            bonusFlashTime_ = 1.5f;
+        }
     } else {
         --lives_;
         streak_ = 0;
@@ -781,6 +793,13 @@ void ShootingGallery::onHUD() {
         glVertex2i(barX,barY); glVertex2i(barX+(int)(barW*minLifeLeft),barY);
         glVertex2i(barX+(int)(barW*minLifeLeft),barY+barH); glVertex2i(barX,barY+barH);
         glEnd();
+
+        // Wskaznik bonusu czasowego po trafieniu (krotki zielony tekst nad paskiem)
+        if (bonusFlashTime_ > 0.0f) {
+            float a = bonusFlashTime_ / 1.5f;
+            glColor3f(0.30f, 1.00f, 0.40f * a + 0.40f);
+            engine_.drawString(cx - 50, barY + barH + 6, "+2s do pozostalych celow!");
+        }
     }
 
     glColor3f(0.75f, 0.85f, 1.00f);
