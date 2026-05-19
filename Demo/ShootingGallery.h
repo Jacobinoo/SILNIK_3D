@@ -89,8 +89,7 @@ private:
     // Tekstury
     std::shared_ptr<Texture> floorTex_;
     std::shared_ptr<Texture> ceilingTex_;
-    std::shared_ptr<Texture> wallTex_;
-    std::shared_ptr<Texture> backWallTex_;
+    std::shared_ptr<Texture> wallTex_;    // wspolna tekstura dla wszystkich 4 scian
     std::shared_ptr<Texture> pillarTex_;
     std::shared_ptr<Texture> coneTex_;
     std::shared_ptr<Texture> boxTex_;

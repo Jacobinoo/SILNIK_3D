@@ -7,6 +7,7 @@ Pliki **24-bitowych nieskompresowanych BMP** które gra wczytuje przy starcie.
 | Plik          | Powierzchnia                       | Zalecany rozmiar | Fallback gdy brak |
 |---------------|------------------------------------|------------------|-------------------|
 | `floor.bmp`   | Podloga pokoju                     | 256×256 / 512×512| cegly (generateBricks) |
+| `wall.bmp`    | Wszystkie 4 sciany pokoju          | 256×256 / 512×512| drewno (generateWood) |
 | `target.bmp`  | Cel-sfera                          | 128×128 / 256×256| szachownica (generateCheckerboard) |
 | `cone.bmp`    | Stozki-przeszkody (3 sztuki)       | 128×128 / 256×256| paski (generateStripes) |
 | `box.bmp`     | Szescian-skrzynie (2 sztuki)       | 256×256 / 512×512| drewno (generateWood) |
@@ -83,6 +84,7 @@ pgk/
 ## Co jakiej tekstury szukac
 
 - **floor.bmp** - drewno, kafelki, parquet, beton, dlazka (`floor`, `wood planks`, `tile`)
+- **wall.bmp** - tynk, cegly, kamien, panele, plytki (`wall`, `plaster`, `brick wall`, `stone`)
 - **target.bmp** - tarcza strzelnicza, bullseye, dartboard, lub wzor 3D
 - **cone.bmp** - paski drogowe / hazard, pasy ostrzegawcze (`traffic cone`, `hazard stripes`)
 - **box.bmp** - drewno, deski, skrzynia, paleta (`wood crate`, `wooden box`, `pallet`)

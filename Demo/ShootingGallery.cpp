@@ -65,7 +65,6 @@ ShootingGallery::ShootingGallery(Engine& engine)
       floorTex_   (std::make_shared<Texture>()),
       ceilingTex_ (std::make_shared<Texture>()),
       wallTex_    (std::make_shared<Texture>()),
-      backWallTex_(std::make_shared<Texture>()),
       pillarTex_  (std::make_shared<Texture>()),
       coneTex_      (std::make_shared<Texture>()),
       boxTex_       (std::make_shared<Texture>()),
@@ -140,9 +139,11 @@ void ShootingGallery::buildRoom() {
     if (!floorTex_->loadBMP("assets/textures/floor.bmp")) {
         floorTex_->generateBricks(256, 0.55f,0.30f,0.20f, 0.25f,0.22f,0.20f, 6);
     }
-    ceilingTex_ ->generatePerlinNoise(256, 0.12f,0.12f,0.18f, 0.30f,0.30f,0.38f, 4, 5.0f);
-    wallTex_    ->generateWood       (256, 0.25f,0.15f,0.08f, 0.65f,0.45f,0.25f, 5);
-    backWallTex_->generateMarble     (256, 0.20f,0.10f,0.08f, 0.85f,0.55f,0.40f, 4.5f);
+    // Wspolna tekstura wszystkich 4 scian: probujemy z pliku BMP, fallback do drewna.
+    if (!wallTex_->loadBMP("assets/textures/wall.bmp")) {
+        wallTex_->generateWood(256, 0.25f,0.15f,0.08f, 0.65f,0.45f,0.25f, 5);
+    }
+    ceilingTex_->generatePerlinNoise(256, 0.12f,0.12f,0.18f, 0.30f,0.30f,0.38f, 4, 5.0f);
 
     // Material z mocniejszym ambientem - lepiej widoczne w przyciemnionych obszarach
     Material wallMat   (Vec3(0.30f,0.25f,0.20f), Vec3(0.75f,0.65f,0.55f), Vec3(0.10f,0.10f,0.10f),  8.0f);
@@ -159,7 +160,7 @@ void ShootingGallery::buildRoom() {
 
     backWall_->setPosition(Vec3(0, ROOM_HEIGHT*0.5f, ROOM_Z_MIN));
     backWall_->setRotation(Vec3(0.5f*PI, 0, 0));
-    backWall_->setMaterial(backMat); backWall_->setTexture(backWallTex_);
+    backWall_->setMaterial(backMat); backWall_->setTexture(wallTex_);
 
     frontWall_->setPosition(Vec3(0, ROOM_HEIGHT*0.5f, ROOM_Z_MAX));
     frontWall_->setRotation(Vec3(-0.5f*PI, 0, 0));
