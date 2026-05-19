@@ -121,10 +121,22 @@ ShootingGallery::ShootingGallery(Engine& engine)
 }
 
 void ShootingGallery::buildRoom() {
-    floorTex_   ->generateCheckerboard(256, 0.55f,0.55f,0.60f, 0.25f,0.25f,0.30f, 8);
-    ceilingTex_ ->generateCheckerboard(256, 0.28f,0.28f,0.34f, 0.16f,0.16f,0.20f, 6);
-    wallTex_    ->generateStripes    (256, 0.50f,0.42f,0.34f, 0.36f,0.28f,0.22f, 16);
-    backWallTex_->generateCheckerboard(256, 0.65f,0.40f,0.30f, 0.35f,0.18f,0.12f, 4);
+    // -----------------------------------------------------------------
+    // DOSTEPNE GENERATORY TEKSTUR (klasa Texture w Engine/Texture.h):
+    //   generateCheckerboard(size, r1,g1,b1, r2,g2,b2, tileCount)
+    //   generateGradient(size, r1,g1,b1, r2,g2,b2, horizontal)
+    //   generateStripes(size, r1,g1,b1, r2,g2,b2, stripeCount)
+    //   generatePerlinNoise(size, r1,g1,b1, r2,g2,b2, octaves, scale)
+    //   generateWood(size, ciemny RGB, jasny RGB, rings)
+    //   generateBricks(size, cegla RGB, fuga RGB, rowsPerTexture)
+    //   generateMarble(size, zyla RGB, kamien RGB, turbulence)
+    //   loadBMP("sciezka.bmp")   -> z pliku 24-bit BMP
+    // -----------------------------------------------------------------
+
+    floorTex_   ->generateBricks    (256, 0.55f,0.30f,0.20f, 0.25f,0.22f,0.20f, 6);
+    ceilingTex_ ->generatePerlinNoise(256, 0.12f,0.12f,0.18f, 0.30f,0.30f,0.38f, 4, 5.0f);
+    wallTex_    ->generateWood       (256, 0.25f,0.15f,0.08f, 0.65f,0.45f,0.25f, 5);
+    backWallTex_->generateMarble     (256, 0.20f,0.10f,0.08f, 0.85f,0.55f,0.40f, 4.5f);
 
     // Material z mocniejszym ambientem - lepiej widoczne w przyciemnionych obszarach
     Material wallMat   (Vec3(0.30f,0.25f,0.20f), Vec3(0.75f,0.65f,0.55f), Vec3(0.10f,0.10f,0.10f),  8.0f);
@@ -165,9 +177,9 @@ void ShootingGallery::buildRoom() {
 }
 
 void ShootingGallery::buildObstacles() {
-    pillarTex_->generateStripes(128, 0.65f,0.65f,0.70f, 0.45f,0.45f,0.50f, 8);
-    coneTex_  ->generateStripes(128, 1.00f,0.55f,0.10f, 1.00f,0.95f,0.95f, 6);
-    boxTex_   ->generateCheckerboard(128, 0.55f,0.38f,0.20f, 0.38f,0.25f,0.12f, 6);
+    pillarTex_->generateMarble    (256, 0.30f,0.30f,0.35f, 0.85f,0.85f,0.90f, 3.0f);
+    coneTex_  ->generateStripes   (128, 1.00f,0.55f,0.10f, 1.00f,0.95f,0.95f, 6);
+    boxTex_   ->generateWood      (256, 0.30f,0.18f,0.08f, 0.70f,0.50f,0.25f, 6);
 
     Material pillarMat(Vec3(0.30f,0.30f,0.32f), Vec3(0.65f,0.65f,0.70f), Vec3(0.30f,0.30f,0.30f), 24.0f);
     Material coneMat  (Vec3(0.40f,0.20f,0.05f), Vec3(0.95f,0.55f,0.15f), Vec3(0.50f,0.50f,0.50f), 16.0f);

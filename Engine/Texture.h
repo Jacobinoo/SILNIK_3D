@@ -38,6 +38,37 @@ public:
                          float r2, float g2, float b2,
                          int stripeCount = 8);
 
+    // Fraktalny szum (value noise + FBM) - naturalna chaotyczna tekstura.
+    // Interpoluje miedzy dwoma kolorami wedlug wartosci szumu w (0, 1).
+    // octaves: ile poziomow szumu sumowac (wiecej = wiecej detali).
+    // scale: ile cykli szumu na cala teksture (wiecej = drobniejszy wzor).
+    void generatePerlinNoise(int size,
+                             float r1, float g1, float b1,
+                             float r2, float g2, float b2,
+                             int octaves = 4, float scale = 4.0f);
+
+    // Slojowe drewno: koncentryczne kregi zaburzone szumem.
+    // r1,g1,b1 = ciemne sloje; r2,g2,b2 = jasne tlo. rings = ilosc slojow.
+    void generateWood(int size,
+                      float r1, float g1, float b1,
+                      float r2, float g2, float b2,
+                      int rings = 8);
+
+    // Mur z cegiel z fugami i naturalna wariacja koloru ceglek.
+    // br,bg,bb = kolor ceglek; mr,mg,mb = kolor fugi.
+    void generateBricks(int size,
+                        float br, float bg, float bb,
+                        float mr, float mg, float mb,
+                        int rowsPerTexture = 6);
+
+    // Marmur: zyly otrzymane przez turbulencje na funkcji sin.
+    // r1,g1,b1 = ciemne zyly; r2,g2,b2 = jasny kamien.
+    // turbulence = sila zaburzenia (wieksze = bardziej falujace zyly).
+    void generateMarble(int size,
+                        float r1, float g1, float b1,
+                        float r2, float g2, float b2,
+                        float turbulence = 5.0f);
+
     void bind() const;
     void unbind() const;
 
