@@ -2,15 +2,17 @@
 
 Pliki **24-bitowych nieskompresowanych BMP** które gra wczytuje przy starcie.
 
-## Wymagane pliki
+## Pliki opcjonalne
 
-| Plik          | Powierzchnia                  | Zalecany rozmiar |
-|---------------|-------------------------------|------------------|
-| `floor.bmp`   | Podloga pokoju                | 256×256 lub 512×512 |
-| `target.bmp`  | Cel-sfera (powtarza sie na UV)| 128×128 lub 256×256 |
+| Plik          | Powierzchnia                       | Zalecany rozmiar | Fallback gdy brak |
+|---------------|------------------------------------|------------------|-------------------|
+| `floor.bmp`   | Podloga pokoju                     | 256×256 / 512×512| cegly (generateBricks) |
+| `target.bmp`  | Cel-sfera                          | 128×128 / 256×256| szachownica (generateCheckerboard) |
+| `cone.bmp`    | Stozki-przeszkody (3 sztuki)       | 128×128 / 256×256| paski (generateStripes) |
+| `box.bmp`     | Szescian-skrzynie (2 sztuki)       | 256×256 / 512×512| drewno (generateWood) |
 
-Jesli plik nie istnieje, gra uzyje proceduralnej tekstury w jego miejsce
-(`generateBricks` dla podlogi, `generateCheckerboard` dla celu).
+Wszystkie pliki sa **opcjonalne** - gra dziala bez nich (uzyje proceduralnych).
+Dodawaj te ktorych potrzebujesz.
 
 ## Wymagania formatu BMP
 
@@ -66,13 +68,21 @@ pgk/
 ├── assets/
 │   └── textures/
 │       ├── README.md       <- ten plik
-│       ├── floor.bmp       <- dodaj
-│       └── target.bmp      <- dodaj
+│       ├── floor.bmp       <- opcjonalny
+│       ├── target.bmp      <- opcjonalny
+│       ├── cone.bmp        <- opcjonalny
+│       └── box.bmp         <- opcjonalny
 ├── build/
 │   ├── Silnik3D.exe
 │   └── assets/             <- kopiowane automatycznie przez CMake
 │       └── textures/
-│           ├── floor.bmp
-│           └── target.bmp
+│           └── *.bmp
 └── ...
 ```
+
+## Co jakiej tekstury szukac
+
+- **floor.bmp** - drewno, kafelki, parquet, beton, dlazka (`floor`, `wood planks`, `tile`)
+- **target.bmp** - tarcza strzelnicza, bullseye, dartboard, lub wzor 3D
+- **cone.bmp** - paski drogowe / hazard, pasy ostrzegawcze (`traffic cone`, `hazard stripes`)
+- **box.bmp** - drewno, deski, skrzynia, paleta (`wood crate`, `wooden box`, `pallet`)

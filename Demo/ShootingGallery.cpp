@@ -184,8 +184,15 @@ void ShootingGallery::buildRoom() {
 
 void ShootingGallery::buildObstacles() {
     pillarTex_->generateMarble    (256, 0.30f,0.30f,0.35f, 0.85f,0.85f,0.90f, 3.0f);
-    coneTex_  ->generateStripes   (128, 1.00f,0.55f,0.10f, 1.00f,0.95f,0.95f, 6);
-    boxTex_   ->generateWood      (256, 0.30f,0.18f,0.08f, 0.70f,0.50f,0.25f, 6);
+
+    // Stozki: probujemy z pliku BMP, fallback do paskow.
+    if (!coneTex_->loadBMP("assets/textures/cone.bmp")) {
+        coneTex_->generateStripes(128, 1.00f,0.55f,0.10f, 1.00f,0.95f,0.95f, 6);
+    }
+    // Szescian-skrzynie: probujemy z pliku BMP, fallback do proceduralnego drewna.
+    if (!boxTex_->loadBMP("assets/textures/box.bmp")) {
+        boxTex_->generateWood(256, 0.30f,0.18f,0.08f, 0.70f,0.50f,0.25f, 6);
+    }
 
     Material pillarMat(Vec3(0.30f,0.30f,0.32f), Vec3(0.65f,0.65f,0.70f), Vec3(0.30f,0.30f,0.30f), 24.0f);
     Material coneMat  (Vec3(0.40f,0.20f,0.05f), Vec3(0.95f,0.55f,0.15f), Vec3(0.50f,0.50f,0.50f), 16.0f);
