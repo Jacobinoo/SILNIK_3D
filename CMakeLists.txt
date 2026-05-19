@@ -68,3 +68,14 @@ else()
     find_package(GLUT REQUIRED)
     target_link_libraries(${PROJECT_NAME} PRIVATE OpenGL::GL GLUT::GLUT)
 endif()
+
+# Kopiowanie folderu assets/ (BMP textures) obok pliku wykonywalnego.
+# Wykonuje sie przy kazdym buildzie - jesli dodasz nowy plik BMP, kolejne
+# `cmake --build build` skopiuje go automatycznie.
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets")
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/assets"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
+    )
+endif()

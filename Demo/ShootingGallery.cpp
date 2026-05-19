@@ -81,6 +81,14 @@ ShootingGallery::ShootingGallery(Engine& engine)
     // ---- Globalny ambient (silny, zeby ciemne katy nie byly czarne) ----
     engine_.setGlobalAmbient(0.35f, 0.35f, 0.38f);
 
+    // ---- Tekstura celu: probujemy z pliku BMP, fallback do szachownicy ----
+    // Zob. assets/textures/README.md jak dodac plik.
+    if (!targetTex_->loadBMP("assets/textures/target.bmp")) {
+        targetTex_->generateCheckerboard(128,
+            1.00f, 0.30f, 0.10f,
+            1.00f, 0.95f, 0.50f, 6);
+    }
+
     // ---- Pierwsza lampa (z silnika) - frontowa strefa ----
     auto& l0 = *engine_.getPointLight();
     l0.setPosition(Vec3(0.0f, ROOM_HEIGHT - 0.5f, -2.0f));
@@ -99,11 +107,6 @@ ShootingGallery::ShootingGallery(Engine& engine)
     // Dodajemy druga lampe PRZED scianami/przeszkodami, zeby renderer
     // ustawil obie pozycje swiatla przed rysowaniem geometrii.
     engine_.getSceneRoot()->addChild(secondLight_);
-
-    // ---- Tekstury / scena ----
-    targetTex_->generateCheckerboard(128,
-        1.00f, 0.30f, 0.10f,
-        1.00f, 0.95f, 0.50f, 6);
 
     buildRoom();
     buildObstacles();
@@ -133,7 +136,10 @@ void ShootingGallery::buildRoom() {
     //   loadBMP("sciezka.bmp")   -> z pliku 24-bit BMP
     // -----------------------------------------------------------------
 
-    floorTex_   ->generateBricks    (256, 0.55f,0.30f,0.20f, 0.25f,0.22f,0.20f, 6);
+    // Podloga: probujemy zaladowac plik BMP, fallback do proceduralnych ceglek.
+    if (!floorTex_->loadBMP("assets/textures/floor.bmp")) {
+        floorTex_->generateBricks(256, 0.55f,0.30f,0.20f, 0.25f,0.22f,0.20f, 6);
+    }
     ceilingTex_ ->generatePerlinNoise(256, 0.12f,0.12f,0.18f, 0.30f,0.30f,0.38f, 4, 5.0f);
     wallTex_    ->generateWood       (256, 0.25f,0.15f,0.08f, 0.65f,0.45f,0.25f, 5);
     backWallTex_->generateMarble     (256, 0.20f,0.10f,0.08f, 0.85f,0.55f,0.40f, 4.5f);
