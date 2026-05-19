@@ -70,12 +70,16 @@ else()
 endif()
 
 # Kopiowanie folderu assets/ (BMP textures) obok pliku wykonywalnego.
-# Wykonuje sie przy kazdym buildzie - jesli dodasz nowy plik BMP, kolejne
-# `cmake --build build` skopiuje go automatycznie.
+# Uzywamy osobnego custom target z ALL - dzieki temu komenda kopiowania
+# uruchamia sie ZAWSZE przy `cmake --build`, niezaleznie od tego czy
+# Silnik3D.exe byl przebudowywany. Dorzucenie nowego pliku BMP do
+# assets/textures/ wystarczy potwierdzic przez kolejny `cmake --build build`.
 if(EXISTS "${CMAKE_SOURCE_DIR}/assets")
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    add_custom_target(copy_assets ALL
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${CMAKE_SOURCE_DIR}/assets"
             "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
+        COMMENT "Kopiowanie assets/ do katalogu z exe"
     )
+    add_dependencies(copy_assets ${PROJECT_NAME})
 endif()
