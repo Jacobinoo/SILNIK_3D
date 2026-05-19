@@ -34,10 +34,11 @@ private:
     ProjectionType    currentProjection;
     CameraControlMode cameraControl;
 
-    // Stany renderowania
+    // Stany renderowania / sterowania
     bool wireframeMode;
     bool lightingEnabled;
     bool smoothShading;
+    bool paused;
 
     // Wejscie
     bool keys[256];
@@ -102,6 +103,8 @@ public:
     void toggleWireframe();
     void toggleLighting();
     void toggleShading();
+    void togglePause();
+    bool isPaused() const { return paused; }
     int  windowW() const { return windowWidth;  }
     int  windowH() const { return windowHeight; }
 

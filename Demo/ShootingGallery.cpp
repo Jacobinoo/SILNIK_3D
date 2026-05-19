@@ -763,5 +763,19 @@ void ShootingGallery::onHUD() {
         engine_.drawString(cx - 100, cy - 20, "Najlepsza seria: " + std::to_string(bestStreak_));
         glColor3f(0.80f, 0.80f, 0.40f);
         engine_.drawString(cx - 115, cy - 50, "Nacisnij R aby zagrac ponownie");
+    } else if (engine_.isPaused()) {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glColor4f(0.0f, 0.0f, 0.0f, 0.65f);
+        glBegin(GL_QUADS);
+        glVertex2i(0,0); glVertex2i(W,0); glVertex2i(W,H); glVertex2i(0,H);
+        glEnd();
+        glDisable(GL_BLEND);
+
+        glColor3f(1.0f, 0.85f, 0.45f);
+        engine_.drawStringLarge(cx - 50, cy + 30, "PAUZA");
+        glColor3f(0.90f, 0.90f, 0.90f);
+        engine_.drawString(cx - 80, cy - 5,  "ESC = wznow gre");
+        engine_.drawString(cx - 80, cy - 25, "Q   = wyjscie z gry");
     }
 }

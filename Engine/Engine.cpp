@@ -18,6 +18,7 @@ Engine::Engine()
       currentProjection(ProjectionType::PERSPECTIVE),
       cameraControl(CameraControlMode::ENGINE_ORBIT),
       wireframeMode(false), lightingEnabled(true), smoothShading(true),
+      paused(false),
       mouseLeftDown(false), freeMouseLook(false),
       lastMouseX(0), lastMouseY(0), mouseSensitivity(0.0035f),
       cameraTarget(0.0f, 0.0f, 0.0f),
@@ -260,24 +261,33 @@ void Engine::handleKeyboard(unsigned char key, int x, int y, bool isDown) {
     if (!isDown) return;
 
     switch (key) {
-        case 27:  shutdown(); std::exit(0); break;
+        case 27: togglePause(); break;                         // ESC = pauza
+        case 'q': case 'Q':
+            if (paused) { shutdown(); std::exit(0); }          // Q (w pauzie) = wyjscie
+            break;
         case 'p': case 'P': setProjection(ProjectionType::PERSPECTIVE);   break;
         case 'o': case 'O': setProjection(ProjectionType::ORTHOGRAPHIC);  break;
         case 'm': case 'M': toggleWireframe(); break;
         case 'l': case 'L': toggleLighting();  break;
         case 'g': case 'G': toggleShading();   break;
-        case ' ':           if (shootCallback) shootCallback(); break;
+        case ' ':           if (!paused && shootCallback) shootCallback(); break;
         case 'r': case 'R': if (resetCallback) resetCallback(); break;
         default: break;
     }
 }
 
 void Engine::handleMouse(int button, int state, int x, int y) {
+    if (paused) return;
+
     if (button == GLUT_LEFT_BUTTON) {
-        mouseLeftDown = (state == GLUT_DOWN);
         if (state == GLUT_DOWN) {
+            // W trybie free mouse look LPM strzela; w trybie orbity sluzy do dragu.
+            if (freeMouseLook && shootCallback) shootCallback();
+            mouseLeftDown = true;
             lastMouseX = x;
             lastMouseY = y;
+        } else {
+            mouseLeftDown = false;
         }
     }
 
@@ -289,6 +299,7 @@ void Engine::handleMouse(int button, int state, int x, int y) {
 }
 
 void Engine::handleMouseMotion(int x, int y) {
+    if (paused) return;
     if (freeMouseLook) {
         int cx = windowWidth / 2;
         int cy = windowHeight / 2;
@@ -334,6 +345,15 @@ void Engine::setFreeMouseLook(bool enabled) {
 
 void Engine::onTimer() {
     int now = glutGet(GLUT_ELAPSED_TIME);
+
+    if (paused) {
+        // Trzymamy lastTickMs zaktualizowany, aby po wznowieniu dt bylo male.
+        lastTickMs = now;
+        if (glutGetWindow() != 0) glutPostRedisplay();
+        glutTimerFunc(1000 / targetFPS, timerCallback, 0);
+        return;
+    }
+
     float dt = (lastTickMs == 0) ? 0.0f : (now - lastTickMs) / 1000.0f;
     lastTickMs = now;
 
@@ -374,6 +394,20 @@ int  Engine::getTargetFPS() const  { return targetFPS; }
 void Engine::toggleWireframe()     { wireframeMode   = !wireframeMode; }
 void Engine::toggleLighting()      { lightingEnabled = !lightingEnabled; }
 void Engine::toggleShading()       { smoothShading   = !smoothShading; }
+
+void Engine::togglePause() {
+    paused = !paused;
+    if (paused) {
+        // Pokaz kursor podczas pauzy
+        glutSetCursor(GLUT_CURSOR_INHERIT);
+    } else {
+        // Wznow free mouse look: schowaj kursor i wycentruj
+        if (freeMouseLook) {
+            glutSetCursor(GLUT_CURSOR_NONE);
+            glutWarpPointer(windowWidth / 2, windowHeight / 2);
+        }
+    }
+}
 
 // Statyczne callbacki GLUT
 void Engine::displayCallback()                                   { if (instance) instance->render(); }

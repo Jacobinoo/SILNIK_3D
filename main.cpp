@@ -22,14 +22,15 @@ int main(int argc, char** argv) {
     std::cout << "Cel: trafic w pomaranczowa sfere zanim wygasnie (7 sek).\n";
     std::cout << "Bonus za serie: co 5 trafien +1 zycie (max 9).\n\n";
     std::cout << "Sterowanie:\n";
-    std::cout << "  WASD       = ruch gracza\n";
-    std::cout << "  mysz       = celowanie (free look)\n";
-    std::cout << "  SPACJA     = strzal (raycast)\n";
-    std::cout << "  R          = restart po Game Over\n";
-    std::cout << "  L / G / M  = lighting / shading / wireframe\n";
-    std::cout << "  P / O      = perspektywa / ortogonalne\n";
-    std::cout << "  + / -      = zmiana FPS\n";
-    std::cout << "  ESC        = wyjscie\n";
+    std::cout << "  WASD          = ruch gracza\n";
+    std::cout << "  mysz          = celowanie (free look)\n";
+    std::cout << "  SPACJA / LPM  = strzal (raycast)\n";
+    std::cout << "  ESC           = pauza / wznow\n";
+    std::cout << "  Q (w pauzie)  = wyjscie z gry\n";
+    std::cout << "  R             = restart po Game Over\n";
+    std::cout << "  L / G / M     = lighting / shading / wireframe\n";
+    std::cout << "  P / O         = perspektywa / ortogonalne\n";
+    std::cout << "  + / -         = zmiana FPS\n";
 
     engine.run();
     return 0;
