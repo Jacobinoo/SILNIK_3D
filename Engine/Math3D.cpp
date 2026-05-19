@@ -225,6 +225,92 @@ bool rayCylinderIntersect(const Vec3& origin, const Vec3& direction,
     return false;
 }
 
+bool rayConeIntersect(const Vec3& origin, const Vec3& dir,
+                      const Vec3& base, float baseRadius, float height,
+                      float& outT) {
+    // Stozek: srodek podstawy w base, os Y, wierzcholek w base + (0, height, 0).
+    // Promien r(dy) = baseRadius * (1 - dy / height), dy = py - base.y w [0, height].
+    // Rownanie: (px - base.x)^2 + (pz - base.z)^2 = r(dy)^2
+    float ox = origin.x - base.x;
+    float oz = origin.z - base.z;
+    float oy = origin.y - base.y;
+    float k  = baseRadius / height;
+    float A  = baseRadius - k * oy;
+    float B  = -k * dir.y;
+
+    float a = dir.x * dir.x + dir.z * dir.z - B * B;
+    float b = ox * dir.x + oz * dir.z - A * B;
+    float c = ox * ox + oz * oz - A * A;
+
+    if (std::abs(a) < 1e-6f) return false;
+    float disc = b * b - a * c;
+    if (disc < 0.0f) return false;
+
+    float sqrtD = std::sqrt(disc);
+    float t1 = (-b - sqrtD) / a;
+    float t2 = (-b + sqrtD) / a;
+
+    for (int i = 0; i < 2; ++i) {
+        float t = (i == 0) ? t1 : t2;
+        if (t > 0.0001f) {
+            float y = origin.y + t * dir.y;
+            if (y >= base.y && y <= base.y + height) {
+                outT = t;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool rayAABBIntersect(const Vec3& origin, const Vec3& dir,
+                      const Vec3& boxMin, const Vec3& boxMax,
+                      float& outT) {
+    float tmin = -1e30f;
+    float tmax =  1e30f;
+
+    // X
+    if (std::abs(dir.x) < 1e-6f) {
+        if (origin.x < boxMin.x || origin.x > boxMax.x) return false;
+    } else {
+        float invD = 1.0f / dir.x;
+        float t0 = (boxMin.x - origin.x) * invD;
+        float t1 = (boxMax.x - origin.x) * invD;
+        if (t0 > t1) { float tmp = t0; t0 = t1; t1 = tmp; }
+        if (t0 > tmin) tmin = t0;
+        if (t1 < tmax) tmax = t1;
+        if (tmin > tmax) return false;
+    }
+    // Y
+    if (std::abs(dir.y) < 1e-6f) {
+        if (origin.y < boxMin.y || origin.y > boxMax.y) return false;
+    } else {
+        float invD = 1.0f / dir.y;
+        float t0 = (boxMin.y - origin.y) * invD;
+        float t1 = (boxMax.y - origin.y) * invD;
+        if (t0 > t1) { float tmp = t0; t0 = t1; t1 = tmp; }
+        if (t0 > tmin) tmin = t0;
+        if (t1 < tmax) tmax = t1;
+        if (tmin > tmax) return false;
+    }
+    // Z
+    if (std::abs(dir.z) < 1e-6f) {
+        if (origin.z < boxMin.z || origin.z > boxMax.z) return false;
+    } else {
+        float invD = 1.0f / dir.z;
+        float t0 = (boxMin.z - origin.z) * invD;
+        float t1 = (boxMax.z - origin.z) * invD;
+        if (t0 > t1) { float tmp = t0; t0 = t1; t1 = tmp; }
+        if (t0 > tmin) tmin = t0;
+        if (t1 < tmax) tmax = t1;
+        if (tmin > tmax) return false;
+    }
+
+    if (tmax < 0.0001f) return false;
+    outT = (tmin > 0.0001f) ? tmin : tmax;
+    return true;
+}
+
 bool raySphereIntersect(const Vec3& origin, const Vec3& direction,
                         const Vec3& center, float radius, float& outT) {
     // |origin + t*dir - center|^2 = radius^2

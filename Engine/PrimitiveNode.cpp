@@ -212,6 +212,76 @@ void SphereNode::drawGeometry() const {
     }
 }
 
+// ===================== ConeNode =====================
+
+ConeNode::ConeNode(float radius, float height, int slices)
+    : PrimitiveNode("Cone"), coneRadius(radius), coneHeight(height), coneSlices(slices) {}
+
+void ConeNode::setRadius(float v) { coneRadius = v; }
+void ConeNode::setHeight(float v) { coneHeight = v; }
+void ConeNode::setSlices(int v)   { coneSlices = v > 3 ? v : 3; }
+float ConeNode::radius() const { return coneRadius; }
+float ConeNode::height() const { return coneHeight; }
+int   ConeNode::slices() const { return coneSlices; }
+
+// Stozek: podstawa w y=-h/2, wierzcholek w y=+h/2. Normalne sciany bocznej
+// sa nachylone wedlug kata zwezania stozka (slope angle).
+void ConeNode::drawGeometry() const {
+    const float halfH = coneHeight * 0.5f;
+    const float TWO_PI = 2.0f * 3.14159265358979323846f;
+
+    // Skladowe normalnej sciany bocznej:
+    //   pozioma (radialna) = cos(slope) = h / L
+    //   pionowa (skierowana w gore, bo stozek zwezna sie ku gorze) = r / L
+    float L  = std::sqrt(coneRadius * coneRadius + coneHeight * coneHeight);
+    float nh = coneHeight / L;
+    float nv = coneRadius / L;
+
+    // Powierzchnia boczna: N osobnych trojkatow z apexem (z usrednioną normalną)
+    glBegin(GL_TRIANGLES);
+    for (int i = 0; i < coneSlices; ++i) {
+        float t1 = (float)i        / (float)coneSlices;
+        float t2 = (float)(i + 1)  / (float)coneSlices;
+        float a1 = t1 * TWO_PI;
+        float a2 = t2 * TWO_PI;
+        float cx1 = std::cos(a1), cz1 = std::sin(a1);
+        float cx2 = std::cos(a2), cz2 = std::sin(a2);
+
+        float aMid = (a1 + a2) * 0.5f;
+        float cxM = std::cos(aMid), czM = std::sin(aMid);
+
+        // Apex (usredniona normalna z dwoch sasiednich)
+        glNormal3f(cxM * nh, nv, czM * nh);
+        glTexCoord2f((t1 + t2) * 0.5f, 1.0f);
+        glVertex3f(0.0f, halfH, 0.0f);
+
+        // Wierzcholek podstawy 1
+        glNormal3f(cx1 * nh, nv, cz1 * nh);
+        glTexCoord2f(t1, 0.0f);
+        glVertex3f(cx1 * coneRadius, -halfH, cz1 * coneRadius);
+
+        // Wierzcholek podstawy 2
+        glNormal3f(cx2 * nh, nv, cz2 * nh);
+        glTexCoord2f(t2, 0.0f);
+        glVertex3f(cx2 * coneRadius, -halfH, cz2 * coneRadius);
+    }
+    glEnd();
+
+    // Dolny dysk (normal skierowany w dol)
+    glBegin(GL_TRIANGLE_FAN);
+    glNormal3f(0.0f, -1.0f, 0.0f);
+    glTexCoord2f(0.5f, 0.5f);
+    glVertex3f(0.0f, -halfH, 0.0f);
+    for (int i = 0; i <= coneSlices; ++i) {
+        float t = (float)i / (float)coneSlices;
+        float ang = -t * TWO_PI;
+        float cx = std::cos(ang), cz = std::sin(ang);
+        glTexCoord2f(0.5f + cx * 0.5f, 0.5f + cz * 0.5f);
+        glVertex3f(cx * coneRadius, -halfH, cz * coneRadius);
+    }
+    glEnd();
+}
+
 // ===================== PlaneNode =====================
 
 PlaneNode::PlaneNode(float width, float depth)

@@ -65,4 +65,16 @@ bool rayCylinderIntersect(const Vec3& origin, const Vec3& direction,
                           const Vec3& base, float radius, float height,
                           float& outT);
 
+// Test przeciecia promienia ze stozkiem (os Y, baza w 'base' szeroka, wierzcholek u gory).
+// Promien przy wysokosci dy nad podstawa = baseRadius * (1 - dy / height).
+bool rayConeIntersect(const Vec3& origin, const Vec3& direction,
+                      const Vec3& base, float baseRadius, float height,
+                      float& outT);
+
+// Test przeciecia promienia z prostopadloscianem osi-aligned (AABB).
+// Metoda "slab": dla kazdej osi liczymy zakres t przeciecia.
+bool rayAABBIntersect(const Vec3& origin, const Vec3& direction,
+                      const Vec3& boxMin, const Vec3& boxMax,
+                      float& outT);
+
 #endif

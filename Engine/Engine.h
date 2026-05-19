@@ -91,6 +91,7 @@ public:
     void setWindowParams(int width, int height, const std::string& title, bool fullscreen = false);
     void setGraphicsParams(int fps, bool depth, bool doubleBuffering);
     void setClearColor(float r, float g, float b, float a);
+    void setGlobalAmbient(float r, float g, float b);
     void setProjection(ProjectionType type);
     void run();
     void shutdown();

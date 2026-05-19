@@ -105,6 +105,11 @@ void Engine::setClearColor(float r, float g, float b, float a) {
     glClearColor(r, g, b, a);
 }
 
+void Engine::setGlobalAmbient(float r, float g, float b) {
+    GLfloat amb[4] = { r, g, b, 1.0f };
+    glLightModelfv(GL_LIGHT_MODEL_AMBIENT, amb);
+}
+
 void Engine::setProjection(ProjectionType type) {
     currentProjection = type;
     updateProjection();

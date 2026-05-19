@@ -78,6 +78,29 @@ private:
     int sphereSlices;
 };
 
+// Stożek (boczna powierzchnia z trójkątów + dolny dysk) z UV i normalnymi.
+// Podstawa w y = -h/2, wierzchołek w y = +h/2. Normalne boczne sa
+// nachylone zgodnie z katem zwezania.
+class ConeNode : public PrimitiveNode {
+public:
+    ConeNode(float radius, float height, int slices = 24);
+    void setRadius(float value);
+    void setHeight(float value);
+    void setSlices(int value);
+
+    float radius() const;
+    float height() const;
+    int   slices() const;
+
+protected:
+    void drawGeometry() const override;
+
+private:
+    float coneRadius;
+    float coneHeight;
+    int   coneSlices;
+};
+
 // Płaski czworokąt w płaszczyźnie XZ, normalny skierowany w górę.
 class PlaneNode : public PrimitiveNode {
 public:
