@@ -41,6 +41,7 @@ private:
 
     void buildRoom();
     void buildObstacles();
+    void buildDecorations();
     void initTargetPool();
     void spawnWave();
     void resetGame();
@@ -94,6 +95,8 @@ private:
     std::shared_ptr<Texture> coneTex_;
     std::shared_ptr<Texture> boxTex_;
     std::shared_ptr<Texture> targetTex_;
+    std::shared_ptr<Texture> decorationTex_;
+    std::shared_ptr<Texture> torusTex_;
 
     // Stan gry
     int   score_;

@@ -19,12 +19,12 @@ namespace {
     const float ROOM_Z_CENTER = (ROOM_Z_MIN + ROOM_Z_MAX) * 0.5f;
     const float WALL_BUFFER = 0.5f;
 
-    // Strefa pojawiania celow
-    const float SPAWN_X_HALF = 8.0f;
+    // Strefa pojawiania celow - praktycznie caly pokoj
+    const float SPAWN_X_HALF = 8.5f;
     const float SPAWN_Y_MIN  = 1.0f;
-    const float SPAWN_Y_MAX  = 4.0f;
+    const float SPAWN_Y_MAX  = 4.5f;
     const float SPAWN_Z_MIN  = -18.0f;
-    const float SPAWN_Z_MAX  = -4.0f;
+    const float SPAWN_Z_MAX  = 7.0f;
     const float MIN_SPAWN_DIST_FROM_PLAYER = 3.5f;
     const float MIN_SPAWN_DIST_FROM_OTHER  = 3.0f;
 
@@ -67,9 +67,11 @@ ShootingGallery::ShootingGallery(Engine& engine)
       wallTex_    (std::make_shared<Texture>()),
       backWallTex_(std::make_shared<Texture>()),
       pillarTex_  (std::make_shared<Texture>()),
-      coneTex_    (std::make_shared<Texture>()),
-      boxTex_     (std::make_shared<Texture>()),
-      targetTex_  (std::make_shared<Texture>()),
+      coneTex_      (std::make_shared<Texture>()),
+      boxTex_       (std::make_shared<Texture>()),
+      targetTex_    (std::make_shared<Texture>()),
+      decorationTex_(std::make_shared<Texture>()),
+      torusTex_     (std::make_shared<Texture>()),
       score_(0), streak_(0), bestStreak_(0),
       lives_(START_LIVES), totalTime_(0.0f),
       gameOver_(false),
@@ -105,6 +107,7 @@ ShootingGallery::ShootingGallery(Engine& engine)
 
     buildRoom();
     buildObstacles();
+    buildDecorations();
     initTargetPool();
 
     // ---- Konfiguracja silnika dla gry ----
@@ -170,13 +173,17 @@ void ShootingGallery::buildObstacles() {
     Material coneMat  (Vec3(0.40f,0.20f,0.05f), Vec3(0.95f,0.55f,0.15f), Vec3(0.50f,0.50f,0.50f), 16.0f);
     Material boxMat   (Vec3(0.30f,0.20f,0.10f), Vec3(0.70f,0.50f,0.30f), Vec3(0.10f,0.10f,0.10f),  6.0f);
 
-    // ---- Cylindryczne kolumny (4 sztuki, glownie po lewej stronie) ----
+    // ---- Cylindryczne kolumny rozsiane po pokoju ----
     struct CylDef { Vec3 base; float r, h; };
     std::vector<CylDef> cyls = {
+        // Tylna polowa
         { Vec3(-4.0f, 0.0f,  -7.5f), 0.55f, 4.0f },
         { Vec3( 4.5f, 0.0f, -10.5f), 0.55f, 4.0f },
         { Vec3( 0.0f, 0.0f, -14.0f), 0.65f, 4.5f },
         { Vec3(-6.5f, 0.0f, -16.0f), 0.50f, 3.5f },
+        // Frontowa polowa (NOWE)
+        { Vec3( 5.0f, 0.0f,   4.0f), 0.50f, 4.0f },
+        { Vec3(-3.0f, 0.0f,  -2.5f), 0.55f, 3.5f },
     };
     for (const auto& d : cyls) {
         auto node = std::make_shared<CylinderNode>(d.r, d.h, 28);
@@ -188,34 +195,127 @@ void ShootingGallery::buildObstacles() {
         cylinderObs_.push_back({ d.base, d.r, d.h });
     }
 
-    // ---- Stozek (po prawej stronie, w przedniej polowie strefy celow) ----
-    {
-        Vec3  base(6.0f, 0.0f, -7.0f);
-        float r = 0.85f, h = 3.2f;
-        auto node = std::make_shared<ConeNode>(r, h, 28);
-        node->setPosition(Vec3(base.x, base.y + h * 0.5f, base.z));
+    // ---- Stozki rozsiane po pokoju ----
+    struct ConeDef { Vec3 base; float r, h; };
+    std::vector<ConeDef> cones = {
+        { Vec3( 6.0f, 0.0f,  -7.0f), 0.85f, 3.2f },  // mid-right
+        { Vec3(-5.5f, 0.0f,   4.0f), 0.70f, 3.0f },  // front-left (NOWY)
+        { Vec3( 2.5f, 0.0f,  -2.0f), 0.60f, 2.5f },  // front-middle (NOWY)
+    };
+    for (const auto& d : cones) {
+        auto node = std::make_shared<ConeNode>(d.r, d.h, 28);
+        node->setPosition(Vec3(d.base.x, d.base.y + d.h * 0.5f, d.base.z));
         node->setMaterial(coneMat);
         node->setTexture(coneTex_);
         engine_.getSceneRoot()->addChild(node);
         coneNodes_.push_back(node);
-        coneObs_.push_back({ base, r, h });
+        coneObs_.push_back({ d.base, d.r, d.h });
     }
 
-    // ---- Skrzynia (sześcian po prawej stronie, w tylnej polowie) ----
-    {
-        Vec3 center(5.5f, 1.0f, -15.5f);
-        float w = 1.6f, h = 2.0f, d = 1.6f;
+    // ---- Skrzynie ----
+    struct BoxDef { Vec3 center; float w, h, d; };
+    std::vector<BoxDef> boxes = {
+        { Vec3( 5.5f, 1.0f, -15.5f), 1.6f, 2.0f, 1.6f },  // back-right
+        { Vec3(-7.0f, 1.0f,   1.0f), 1.8f, 2.0f, 1.5f },  // front-left (NOWY)
+    };
+    for (const auto& d : boxes) {
         auto node = std::make_shared<CubeNode>(1.0f);
-        node->setPosition(center);
-        node->setScale(Vec3(w, h, d));
+        node->setPosition(d.center);
+        node->setScale(Vec3(d.w, d.h, d.d));
         node->setMaterial(boxMat);
         node->setTexture(boxTex_);
         engine_.getSceneRoot()->addChild(node);
         boxNodes_.push_back(node);
 
-        Vec3 boxMin(center.x - w*0.5f, center.y - h*0.5f, center.z - d*0.5f);
-        Vec3 boxMax(center.x + w*0.5f, center.y + h*0.5f, center.z + d*0.5f);
+        Vec3 boxMin(d.center.x - d.w * 0.5f, d.center.y - d.h * 0.5f, d.center.z - d.d * 0.5f);
+        Vec3 boxMax(d.center.x + d.w * 0.5f, d.center.y + d.h * 0.5f, d.center.z + d.d * 0.5f);
         boxObs_.push_back({ boxMin, boxMax });
+    }
+}
+
+void ShootingGallery::buildDecorations() {
+    // Tekstury dekoracji
+    decorationTex_->generateGradient(128,
+        0.95f, 0.80f, 0.35f,
+        0.65f, 0.50f, 0.20f, false);
+    torusTex_->generateCheckerboard(128,
+        0.85f, 0.65f, 0.30f,
+        0.55f, 0.35f, 0.15f, 8);
+
+    Material decMat(
+        Vec3(0.40f, 0.30f, 0.15f),
+        Vec3(0.90f, 0.70f, 0.30f),
+        Vec3(0.85f, 0.75f, 0.50f), 48.0f);
+
+    auto root = engine_.getSceneRoot();
+
+    auto makeSphere = [&](Vec3 pos, float r) {
+        auto s = std::make_shared<SphereNode>(r, 16, 24);
+        s->setPosition(pos);
+        s->setMaterial(decMat);
+        s->setTexture(decorationTex_);
+        root->addChild(s);
+    };
+
+    auto makeCube = [&](Vec3 pos, Vec3 size) {
+        auto c = std::make_shared<CubeNode>(1.0f);
+        c->setPosition(pos);
+        c->setScale(size);
+        c->setMaterial(decMat);
+        c->setTexture(decorationTex_);
+        root->addChild(c);
+    };
+
+    auto makeCylinder = [&](Vec3 pos, float r, float h) {
+        auto c = std::make_shared<CylinderNode>(r, h, 16);
+        c->setPosition(pos);
+        c->setMaterial(decMat);
+        c->setTexture(decorationTex_);
+        root->addChild(c);
+    };
+
+    // ---- Tylna sciana: 3 kule wysoko + 1 wezsza kolumna w srodku ----
+    makeSphere(Vec3(-5.0f, 4.5f, -19.4f), 0.45f);
+    makeSphere(Vec3( 0.0f, 5.0f, -19.4f), 0.55f);
+    makeSphere(Vec3( 5.0f, 4.5f, -19.4f), 0.45f);
+
+    // ---- Frontowa sciana: 2 kostki dekoracyjne wysoko ----
+    makeCube(Vec3(-5.0f, 4.0f,  9.3f), Vec3(0.8f, 0.8f, 0.4f));
+    makeCube(Vec3( 5.0f, 4.0f,  9.3f), Vec3(0.8f, 0.8f, 0.4f));
+
+    // ---- Lewa sciana: 3 kule na sredniej wysokosci ----
+    makeSphere(Vec3(-9.4f, 3.0f,  3.0f), 0.40f);
+    makeSphere(Vec3(-9.4f, 3.0f, -6.0f), 0.40f);
+    makeSphere(Vec3(-9.4f, 3.0f, -14.0f), 0.40f);
+
+    // ---- Prawa sciana: 3 kule analogicznie ----
+    makeSphere(Vec3( 9.4f, 3.0f,  3.0f), 0.40f);
+    makeSphere(Vec3( 9.4f, 3.0f, -6.0f), 0.40f);
+    makeSphere(Vec3( 9.4f, 3.0f, -14.0f), 0.40f);
+
+    // ---- Sufit: torus jako centralny zyrandol + 2 male walce wiszace (lampy) ----
+    {
+        auto t = std::make_shared<TorusNode>(0.7f, 0.18f, 32, 14);
+        t->setPosition(Vec3(0.0f, 5.3f, -5.0f));
+        t->setMaterial(decMat);
+        t->setTexture(torusTex_);
+        root->addChild(t);
+    }
+    // 4 wiszace lampy w rogach
+    makeCylinder(Vec3(-5.0f, 5.3f,  3.0f), 0.18f, 0.6f);
+    makeCylinder(Vec3( 5.0f, 5.3f,  3.0f), 0.18f, 0.6f);
+    makeCylinder(Vec3(-5.0f, 5.3f, -13.0f), 0.18f, 0.6f);
+    makeCylinder(Vec3( 5.0f, 5.3f, -13.0f), 0.18f, 0.6f);
+
+    // ---- Maly stozek-pinkle nad drzwiami frontowymi ----
+    {
+        auto k = std::make_shared<ConeNode>(0.30f, 0.50f, 16);
+        k->setPosition(Vec3(0.0f, 5.5f, 9.0f));
+        // Apex w dol - rotacja 180 wokol X
+        k->setRotation(Vec3(3.14159265f, 0.0f, 0.0f));
+        k->setMaterial(decMat);
+        k->setTexture(decorationTex_);
+        root->addChild(k);
     }
 }
 

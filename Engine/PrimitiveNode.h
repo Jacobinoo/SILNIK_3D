@@ -101,6 +101,27 @@ private:
     int   coneSlices;
 };
 
+// Torus (donut) - parametryzowany dwoma promieniami (major R, minor r).
+// Powierzchnia: (x,y,z) = ((R+r*cos(v))*cos(u), r*sin(v), (R+r*cos(v))*sin(u))
+class TorusNode : public PrimitiveNode {
+public:
+    TorusNode(float majorRadius, float minorRadius,
+              int majorSlices = 24, int minorSlices = 12);
+    void setMajorRadius(float v);
+    void setMinorRadius(float v);
+    float majorRadius() const;
+    float minorRadius() const;
+
+protected:
+    void drawGeometry() const override;
+
+private:
+    float torusMajor;
+    float torusMinor;
+    int   torusMajorSlices;
+    int   torusMinorSlices;
+};
+
 // Płaski czworokąt w płaszczyźnie XZ, normalny skierowany w górę.
 class PlaneNode : public PrimitiveNode {
 public:

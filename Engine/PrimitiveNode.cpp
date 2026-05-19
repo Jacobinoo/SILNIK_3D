@@ -282,6 +282,57 @@ void ConeNode::drawGeometry() const {
     glEnd();
 }
 
+// ===================== TorusNode =====================
+
+TorusNode::TorusNode(float R, float r, int M, int N)
+    : PrimitiveNode("Torus"),
+      torusMajor(R), torusMinor(r),
+      torusMajorSlices(M), torusMinorSlices(N) {}
+
+void TorusNode::setMajorRadius(float v) { torusMajor = v; }
+void TorusNode::setMinorRadius(float v) { torusMinor = v; }
+float TorusNode::majorRadius() const { return torusMajor; }
+float TorusNode::minorRadius() const { return torusMinor; }
+
+// Torus parametryzowany dwoma katami u, v w [0, 2pi].
+// Normalna w danym punkcie = znormalizowany wektor od osrodka rurki do punktu.
+void TorusNode::drawGeometry() const {
+    const float TWO_PI = 2.0f * 3.14159265358979323846f;
+
+    for (int i = 0; i < torusMajorSlices; ++i) {
+        float u1 = (float)i        / torusMajorSlices * TWO_PI;
+        float u2 = (float)(i + 1)  / torusMajorSlices * TWO_PI;
+        float cu1 = std::cos(u1), su1 = std::sin(u1);
+        float cu2 = std::cos(u2), su2 = std::sin(u2);
+
+        glBegin(GL_TRIANGLE_STRIP);
+        for (int j = 0; j <= torusMinorSlices; ++j) {
+            float v  = (float)j / torusMinorSlices * TWO_PI;
+            float cv = std::cos(v);
+            float sv = std::sin(v);
+
+            // Wierzcholek przy katcie u2
+            float x2 = (torusMajor + torusMinor * cv) * cu2;
+            float y2 =  torusMinor * sv;
+            float z2 = (torusMajor + torusMinor * cv) * su2;
+            glNormal3f(cv * cu2, sv, cv * su2);
+            glTexCoord2f((float)(i + 1) / torusMajorSlices,
+                         (float)j       / torusMinorSlices);
+            glVertex3f(x2, y2, z2);
+
+            // Wierzcholek przy katcie u1
+            float x1 = (torusMajor + torusMinor * cv) * cu1;
+            float y1 =  torusMinor * sv;
+            float z1 = (torusMajor + torusMinor * cv) * su1;
+            glNormal3f(cv * cu1, sv, cv * su1);
+            glTexCoord2f((float)i / torusMajorSlices,
+                         (float)j / torusMinorSlices);
+            glVertex3f(x1, y1, z1);
+        }
+        glEnd();
+    }
+}
+
 // ===================== PlaneNode =====================
 
 PlaneNode::PlaneNode(float width, float depth)
