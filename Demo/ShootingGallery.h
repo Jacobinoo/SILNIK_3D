@@ -5,10 +5,10 @@
 #include <memory>
 #include <random>
 
-// Gra: Strzelnica 3D z perspektywy pierwszej osoby.
-// Cel-sfera pojawia sie losowo, obraca i lekko koluje. Gracz porusza sie WASD
-// (na plaszczyznie XZ, stala wysokosc), celuje myszka (free look),
-// strzela SPACJA. Trafienie = +1 pkt (z bonusem za serie), pudlo/timeout = -1 zycie.
+// Gra: Strzelnica 3D z perspektywy pierwszej osoby w zamknietym pokoju.
+// Pokoj o wymiarach 20 x 6 x 30 (X x Y x Z), gracz porusza sie WASD po calej
+// powierzchni podlogi (ze sciennymi kolizjami). Cel-sfera pojawia sie
+// losowo w tylnej czesci pokoju, obraca i kolysze.
 class ShootingGallery {
 public:
     explicit ShootingGallery(Engine& engine);
@@ -19,6 +19,7 @@ public:
     void onReset();
 
 private:
+    void buildRoom();
     void spawnTarget();
     void resetGame();
     void restoreTargetMaterial();
@@ -26,19 +27,25 @@ private:
 
     Engine& engine_;
 
-    // Pozycja gracza (FP eye height)
     Vec3 playerEye_;
-    Vec3 playerEyeHome_;  // pozycja startowa do resetu
+    Vec3 playerEyeHome_;
 
-    // Scena
-    std::shared_ptr<PlaneNode>  ground_;
+    // Sciany pokoju (6 plaszczyzn)
+    std::shared_ptr<PlaneNode>  floor_;
     std::shared_ptr<PlaneNode>  ceiling_;
     std::shared_ptr<PlaneNode>  backWall_;
+    std::shared_ptr<PlaneNode>  frontWall_;
+    std::shared_ptr<PlaneNode>  leftWall_;
+    std::shared_ptr<PlaneNode>  rightWall_;
+
+    // Cel
     std::shared_ptr<SphereNode> target_;
-    std::shared_ptr<CubeNode>   marker_;     // dekoracyjne slupki na podlodze
-    std::shared_ptr<Texture>    groundTex_;
-    std::shared_ptr<Texture>    wallTex_;
+
+    // Tekstury
+    std::shared_ptr<Texture>    floorTex_;
     std::shared_ptr<Texture>    ceilingTex_;
+    std::shared_ptr<Texture>    wallTex_;
+    std::shared_ptr<Texture>    backWallTex_;
     std::shared_ptr<Texture>    targetTex_;
 
     // Stan celu
@@ -48,7 +55,7 @@ private:
     float targetBobPhase_;
     float targetSpinAngle_;
     bool  targetAlive_;
-    float respawnTimer_;  // > 0 = krotka pauza przed nowym celem
+    float respawnTimer_;
 
     // Stan gry
     int   score_;
@@ -57,9 +64,9 @@ private:
     int   lives_;
     float totalTime_;
     bool  gameOver_;
-    float hitFlashTime_;    // zielony blysk po trafieniu
-    float missFlashTime_;   // czerwony blysk pudla
-    float crosshairFlash_;  // krotki rozblysk celownika na strzal
+    float hitFlashTime_;
+    float missFlashTime_;
+    float crosshairFlash_;
 
     std::mt19937 rng_;
 };
