@@ -31,12 +31,12 @@ namespace {
     const int   MAX_TARGETS      = 3;
     const float TARGET_RADIUS    = 0.50f;
     const float HIT_TOLERANCE    = 1.40f;
-    const float TARGET_LIFETIME  = 9.0f;
+    const float TARGET_LIFETIME  = 3.0f;     // bylo 9.0 - skrocone o ok. 67%
     const float WAVE_RESPAWN     = 0.50f;
-    const int   START_LIVES      = 5;
+    const int   START_LIVES      = 2;        // bylo 5 - trudniej
     const float FLASH_DURATION   = 0.35f;
     const float MAX_SHOOT_DIST   = 100.0f;
-    const float MAX_MOVE_RANGE   = 1.4f;
+    const float MAX_MOVE_RANGE   = 1.6f;     // bylo 1.4 - wieksza amplituda ruchu
 
     const float PLAYER_HEIGHT     = 1.75f;
     const float PLAYER_RADIUS     = 0.35f;
@@ -505,16 +505,19 @@ void ShootingGallery::spawnWave() {
         t.movePhase = distR(rng_) * 6.28f;
 
         float mr = distR(rng_);
-        if (mr < 0.50f) {
+        if (mr < 0.30f) {
+            // Statyczny - rzadziej (bylo 50%)
             t.moveAxis = Vec3(0,0,0); t.moveRange = 0; t.moveSpeed = 0;
-        } else if (mr < 0.80f) {
+        } else if (mr < 0.70f) {
+            // Ruch po osi X - prawie 2x szybszy niz wczesniej
             t.moveAxis = Vec3(1,0,0);
             t.moveRange = MAX_MOVE_RANGE;
-            t.moveSpeed = 0.9f + distR(rng_) * 0.6f;
+            t.moveSpeed = 1.7f + distR(rng_) * 1.1f;  // 1.7..2.8 (bylo 0.9..1.5)
         } else {
+            // Ruch po osi Z - szybszy
             t.moveAxis = Vec3(0,0,1);
             t.moveRange = MAX_MOVE_RANGE * 0.8f;
-            t.moveSpeed = 0.9f + distR(rng_) * 0.7f;
+            t.moveSpeed = 1.7f + distR(rng_) * 1.2f;  // 1.7..2.9 (bylo 0.9..1.6)
         }
 
         bool found = false;
