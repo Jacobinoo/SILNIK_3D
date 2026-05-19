@@ -127,6 +127,10 @@ class PlaneNode : public PrimitiveNode {
 public:
     PlaneNode(float width, float depth);
     void setSize(float w, float d);
+    // Skalowanie wspolrzednych UV. Domyslnie 1.0 = 1 powtorzenie tekstury na
+    // 1 jednostke swiata. Mniejsze wartosci -> wieksze pojedyncze tile.
+    // np. setUVScale(0.2) na scianie 30m -> 6 powtorzen zamiast 30.
+    void setUVScale(float scale);
 
 protected:
     void drawGeometry() const override;
@@ -134,6 +138,7 @@ protected:
 private:
     float planeWidth;
     float planeDepth;
+    float planeUVScale;
 };
 
 #endif

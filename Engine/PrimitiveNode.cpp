@@ -336,16 +336,17 @@ void TorusNode::drawGeometry() const {
 // ===================== PlaneNode =====================
 
 PlaneNode::PlaneNode(float width, float depth)
-    : PrimitiveNode("Plane"), planeWidth(width), planeDepth(depth) {}
+    : PrimitiveNode("Plane"), planeWidth(width), planeDepth(depth), planeUVScale(1.0f) {}
 
 void PlaneNode::setSize(float w, float d) { planeWidth = w; planeDepth = d; }
+void PlaneNode::setUVScale(float scale)   { planeUVScale = scale; }
 
 void PlaneNode::drawGeometry() const {
     const float hw = planeWidth  * 0.5f;
     const float hd = planeDepth  * 0.5f;
-    // Powtórzenie tekstury proporcjonalne do rozmiarów płaszczyzny
-    const float uMax = planeWidth;
-    const float vMax = planeDepth;
+    // Powtorzenie tekstury proporcjonalne do rozmiaru plaszczyzny i skali UV
+    const float uMax = planeWidth * planeUVScale;
+    const float vMax = planeDepth * planeUVScale;
 
     glBegin(GL_QUADS);
     glNormal3f(0.0f, 1.0f, 0.0f);

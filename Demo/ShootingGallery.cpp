@@ -151,27 +151,39 @@ void ShootingGallery::buildRoom() {
     Material ceilingMat(Vec3(0.18f,0.18f,0.22f), Vec3(0.45f,0.45f,0.50f), Vec3(0.05f,0.05f,0.05f),  4.0f);
     Material backMat   (Vec3(0.30f,0.20f,0.15f), Vec3(0.80f,0.55f,0.40f), Vec3(0.15f,0.10f,0.10f), 12.0f);
 
+    // Skala UV - kontroluje jak duze sa pojedyncze powtorzenia tekstury.
+    // Mniejsza wartosc = wieksze tile. Dla scian 30x6m wartosc 0.20 daje ok. 6 tile.
+    // Mozesz zmienic ponizsze stale aby uzyskac inny efekt.
+    const float FLOOR_UV_SCALE = 0.30f;   // podloga / sufit: tile co ~3.3m
+    const float WALL_UV_SCALE  = 0.20f;   // sciany: tile co ~5m
+
     floor_->setPosition(Vec3(0, 0, ROOM_Z_CENTER));
+    floor_->setUVScale(FLOOR_UV_SCALE);
     floor_->setMaterial(floorMat); floor_->setTexture(floorTex_);
 
     ceiling_->setPosition(Vec3(0, ROOM_HEIGHT, ROOM_Z_CENTER));
     ceiling_->setRotation(Vec3(PI, 0, 0));
+    ceiling_->setUVScale(FLOOR_UV_SCALE);
     ceiling_->setMaterial(ceilingMat); ceiling_->setTexture(ceilingTex_);
 
     backWall_->setPosition(Vec3(0, ROOM_HEIGHT*0.5f, ROOM_Z_MIN));
     backWall_->setRotation(Vec3(0.5f*PI, 0, 0));
+    backWall_->setUVScale(WALL_UV_SCALE);
     backWall_->setMaterial(backMat); backWall_->setTexture(wallTex_);
 
     frontWall_->setPosition(Vec3(0, ROOM_HEIGHT*0.5f, ROOM_Z_MAX));
     frontWall_->setRotation(Vec3(-0.5f*PI, 0, 0));
+    frontWall_->setUVScale(WALL_UV_SCALE);
     frontWall_->setMaterial(wallMat); frontWall_->setTexture(wallTex_);
 
     leftWall_->setPosition(Vec3(-ROOM_X_HALF, ROOM_HEIGHT*0.5f, ROOM_Z_CENTER));
     leftWall_->setRotation(Vec3(0, 0, -0.5f*PI));
+    leftWall_->setUVScale(WALL_UV_SCALE);
     leftWall_->setMaterial(wallMat); leftWall_->setTexture(wallTex_);
 
     rightWall_->setPosition(Vec3(ROOM_X_HALF, ROOM_HEIGHT*0.5f, ROOM_Z_CENTER));
     rightWall_->setRotation(Vec3(0, 0, 0.5f*PI));
+    rightWall_->setUVScale(WALL_UV_SCALE);
     rightWall_->setMaterial(wallMat); rightWall_->setTexture(wallTex_);
 
     auto root = engine_.getSceneRoot();
