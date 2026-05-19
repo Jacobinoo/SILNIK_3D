@@ -185,7 +185,8 @@ void Engine::drawHUD() const {
     const int step = 16;
 
     glColor3f(1.0f, 1.0f, 0.3f);
-    drawString(10, y, "FPS: " + std::to_string((int)(fpsValue + 0.5f)));
+    drawString(10, y, "FPS: " + std::to_string((int)(fpsValue + 0.5f))
+                    + " / " + std::to_string(targetFPS) + " [+/-]");
     y -= step;
 
     glColor3f(lightingEnabled ? 0.3f : 0.8f, lightingEnabled ? 0.9f : 0.3f, 0.3f);
@@ -272,6 +273,8 @@ void Engine::handleKeyboard(unsigned char key, int x, int y, bool isDown) {
         case 'g': case 'G': toggleShading();   break;
         case ' ':           if (!paused && shootCallback) shootCallback(); break;
         case 'r': case 'R': if (resetCallback) resetCallback(); break;
+        case '+': case '=': setTargetFPS(std::min(240, getTargetFPS() + 10)); break;
+        case '-': case '_': setTargetFPS(std::max(5,   getTargetFPS() - 10)); break;
         default: break;
     }
 }
@@ -378,9 +381,6 @@ void Engine::onTimer() {
         observer->setOrbit(cameraYaw, cameraPitch, cameraDistance);
         updateProjection();
     }
-
-    if (keys['+'] || keys['=']) setTargetFPS(getTargetFPS() + 1);
-    if (keys['-'] || keys['_']) setTargetFPS(std::max(1, getTargetFPS() - 1));
 
     // Logika gry (moze nadpisac kamere itp.)
     if (updateCallback) updateCallback(dt);
