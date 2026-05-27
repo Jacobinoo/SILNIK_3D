@@ -57,16 +57,33 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 if(APPLE)
     target_link_libraries(${PROJECT_NAME} PRIVATE "-framework OpenGL" glut)
 elseif(WIN32)
-    target_link_libraries(${PROJECT_NAME} PRIVATE
-        OpenGL::GL
-        "${VCPKG_DIR}/lib/freeglut.lib"
-        "${VCPKG_DIR}/lib/GlU32.Lib"
-    )
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${VCPKG_DIR}/bin/freeglut.dll"
-            $<TARGET_FILE_DIR:${PROJECT_NAME}>
-    )
+    # If MSYS2 UCRT64 is present, prefer its toolchain (ucrt64).
+    if(EXISTS "/ucrt64")
+        set(UCRT_DIR "/ucrt64")
+        include_directories("${UCRT_DIR}/include")
+        link_directories("${UCRT_DIR}/lib")
+        find_library(FREEGLUT_LIB NAMES freeglut libfreeglut PATHS "${UCRT_DIR}/lib")
+        find_library(GLU_LIB NAMES glu32 libGLU32 PATHS "${UCRT_DIR}/lib")
+        target_link_libraries(${PROJECT_NAME} PRIVATE OpenGL::GL ${FREEGLUT_LIB} ${GLU_LIB})
+        if(FREEGLUT_LIB)
+            add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "${UCRT_DIR}/bin/freeglut.dll"
+                    $<TARGET_FILE_DIR:${PROJECT_NAME}>
+            )
+        endif()
+    else()
+        target_link_libraries(${PROJECT_NAME} PRIVATE
+            OpenGL::GL
+            "${VCPKG_DIR}/lib/freeglut.lib"
+            "${VCPKG_DIR}/lib/GlU32.Lib"
+        )
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${VCPKG_DIR}/bin/freeglut.dll"
+                $<TARGET_FILE_DIR:${PROJECT_NAME}>
+        )
+    endif()
 else()
     find_package(GLUT REQUIRED)
     target_link_libraries(${PROJECT_NAME} PRIVATE OpenGL::GL GLUT::GLUT)
