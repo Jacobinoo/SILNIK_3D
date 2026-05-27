@@ -35,6 +35,25 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 if(APPLE)
     # Dla wersji Cocoa linkujemy natywny framework OpenGL i skompilowany freeglut
     target_link_libraries(${PROJECT_NAME} PRIVATE "-framework OpenGL" glut)
+elseif(WIN32)
+    # Na Windows preferujemy statyczne biblioteki, żeby EXE nie wymagał DLL
+    set(GLUT_USE_STATIC_LIBS ON)
+
+    find_package(GLUT REQUIRED)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE FREEGLUT_STATIC)
+    set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "-static -static-libgcc -static-libstdc++")
+    target_link_libraries(${PROJECT_NAME} PRIVATE OpenGL::GL GLUT::GLUT)
+
+    get_filename_component(MINGW_BIN_DIR "${CMAKE_CXX_COMPILER}" DIRECTORY)
+    foreach(runtime_dll IN ITEMS libfreeglut.dll libwinpthread-1.dll libgcc_s_seh-1.dll libstdc++-6.dll)
+        if(EXISTS "${MINGW_BIN_DIR}/${runtime_dll}")
+            add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "${MINGW_BIN_DIR}/${runtime_dll}"
+                    $<TARGET_FILE_DIR:${PROJECT_NAME}>
+            )
+        endif()
+    endforeach()
 else()
     # Na Windows/Linux używamy standardowego wyszukiwania
     find_package(GLUT REQUIRED)
