@@ -185,76 +185,178 @@ story.append(P("Przy losowaniu pozycji celu sprawdzam: czy nie jest za blisko gr
 # ============ 6. Q&A ============
 story.append(PageBreak())
 story.append(H1("6. Pytania od wykladowcy - przygotowanie"))
+story.append(P("Przy kazdym pytaniu jest pasek <b>Gdzie</b> - mowi w ktorym pliku i w ktorej "
+               "funkcji szukac odpowiedzi, zebys w trakcie obrony szybko otworzyl wlasciwe miejsce."))
 
-story.append(H2("Kamera"))
+story.append(H2("Kamera - tryby"))
 story.append(QA("Czym rozni sie tryb orbity od pierwszej osoby?",
-    "W orbicie oko krazy wokol stalego punktu (target) - dobre do ogladania obiektu. W FPP oko "
-    "stoi w miejscu, a yaw/pitch obracaja kierunek patrzenia - tak jak w grach FPS. W grze "
-    "uzywamy FPP."))
+    "W orbicie oko krazy wokol stalego punktu (orbitTarget) - dobre do ogladania obiektu. W FPP oko "
+    "stoi w miejscu (fpEye), a yaw/pitch obracaja kierunek patrzenia - jak w grach FPS. W grze "
+    "uzywamy FPP. Tryb trzyma pole cameraMode.",
+    "Camera.h -> enum Mode; Camera.cpp -> eyePosition(), viewMatrix()"))
 story.append(QA("Jak z katow yaw i pitch liczysz kierunek patrzenia?",
-    "To wspolrzedne sferyczne. X=sin(yaw)*cos(pitch), Y=sin(pitch), Z=-cos(yaw)*cos(pitch). "
-    "Przy yaw=0,pitch=0 patrzymy w -Z (do przodu w OpenGL). yaw obraca w poziomie, pitch w pionie. "
-    "cos(pitch) skaluje skladowe poziome, zeby wektor zostal jednostkowy."))
+    "To wspolrzedne sferyczne: X=sin(yaw)*cos(pitch), Y=sin(pitch), Z=-cos(yaw)*cos(pitch). Przy "
+    "yaw=0,pitch=0 patrzymy w -Z (do przodu w OpenGL). yaw obraca w poziomie, pitch w pionie. "
+    "cos(pitch) skaluje skladowe poziome, zeby caly wektor mial dlugosc 1.",
+    "Camera.cpp -> lookDirection() (galaz FIRST_PERSON)"))
+story.append(QA("Jak liczysz pozycje oka w trybie orbity?",
+    "eye = target + (cos(pitch)*sin(yaw), sin(pitch), cos(pitch)*cos(yaw)) * distance. Czyli punkt "
+    "na sferze o promieniu distance wokol targetu, wyznaczony przez dwa katy. W FPP po prostu "
+    "zwracam fpEye.",
+    "Camera.cpp -> eyePosition()"))
+story.append(QA("Jak budujesz macierz widoku i czym rozni sie center w obu trybach?",
+    "Wolam Mat4::lookAt(eye, center, up). W FPP center = eye + lookDirection() (patrzymy przed "
+    "siebie). W orbicie center = orbitTarget (patrzymy na staly punkt). Sama lookAt to kod Lukasza.",
+    "Camera.cpp -> viewMatrix(); Math3D.cpp -> Mat4::lookAt()"))
 story.append(QA("Dlaczego ograniczasz pitch do +/- 85 stopni?",
     "Zeby nie dalo sie patrzec idealnie w gore/dol i 'przekrecic' kamery do gory nogami. Przy 90 "
-    "stopniach wektor patrzenia stalby sie rownolegly do osi gory, co psuje lookAt (degeneracja)."))
-story.append(QA("Co to jest macierz widoku?",
-    "Macierz, ktora przenosi caly swiat do ukladu kamery - tak, jakby kamera byla w poczatku "
-    "ukladu i patrzyla w -Z. Buduje ja przez lookAt z pozycji oka i punktu, na ktory patrzymy."))
+    "stopniach wektor patrzenia stalby sie rownolegly do osi 'up', co psuje lookAt - cross(forward,"
+    "up) daloby wektor zerowy (degeneracja).",
+    "Engine.cpp -> handleMouseMotion() (clamp pitch); ograniczenie dotyczy yaw/pitch silnika"))
+story.append(QA("Czemu w setOrbit/setFirstPerson zmieniasz cameraMode?",
+    "Bo te metody jednoznacznie okreslaja tryb. Jak ktos wola setFirstPerson, na pewno chce FPP - "
+    "wiec ustawiam cameraMode=FIRST_PERSON. To zapobiega pomyłce, gdzie zostalby stary tryb i "
+    "kamera liczylaby widok wedlug zlych pol.",
+    "Camera.cpp -> setOrbit(), setFirstPerson()"))
 
-story.append(H2("Oswietlenie"))
-story.append(QA("Wytlumacz model Phonga.",
-    "Kolor punktu to suma trzech skladnikow: ambient (stale swiatlo otoczenia, widoczne nawet w "
-    "cieniu), diffuse (zalezny od kata miedzy normalna a kierunkiem swiatla - rozproszenie) i "
-    "specular (jasny blysk odbicia, sterowany przez shininess). OpenGL liczy to za nas, my "
-    "podajemy parametry materialu i swiatla."))
+story.append(H2("Oswietlenie - model Phonga"))
+story.append(QA("Wytlumacz model Phonga (3 skladniki).",
+    "Kolor punktu to suma: ambient (stale swiatlo otoczenia, widoczne nawet w cieniu), diffuse "
+    "(zalezny od kata miedzy normalna a kierunkiem swiatla - rozproszenie, glowny kolor) i specular "
+    "(jasny blysk odbicia, ostrosc sterowana przez shininess). OpenGL liczy to za nas, my podajemy "
+    "parametry materialu (glMaterialfv) i swiatla (glLightfv).",
+    "Light.h -> struct Material; Light.cpp -> renderSelf(); PrimitiveNode.cpp -> glMaterialfv"))
+story.append(QA("Co to jest shininess i jak wplywa na blysk?",
+    "To wykladnik w czesci specular modelu Phonga. Maly shininess = szeroki, rozmyty blysk (mat). "
+    "Duzy = maly, ostry punkt swiatla (polysk, jak metal/plastik). Ustawiam go per material - np. "
+    "cele maja wysoki, sciany niski.",
+    "Light.cpp -> glMaterialf(..., GL_SHININESS, ...); wartosci w Material"))
 story.append(QA("Co oznacza czwarta wspolrzedna pozycji swiatla (w=1)?",
     "w=1 to swiatlo punktowe - ma konkretna pozycje i swieci we wszystkie strony. w=0 to swiatlo "
-    "kierunkowe (jak slonce) - liczy sie tylko kierunek, nie pozycja. My uzywamy punktowych (w=1)."))
-story.append(QA("Co to jest attenuation (tlumienie)?",
-    "Spadek jasnosci swiatla z odlegloscia, wg wzoru 1/(kc + kl*d + kq*d^2). kc to stala, kl "
-    "liniowa, kq kwadratowa. Mniejsze wspolczynniki = swiatlo siega dalej. Ustawiamy male, zeby "
-    "caly pokoj byl oswietlony."))
+    "kierunkowe (jak slonce, w nieskonczonosci) - liczy sie tylko kierunek, nie pozycja. My "
+    "uzywamy punktowych, wiec position[3] = 1.0f.",
+    "Light.cpp -> renderSelf() (GLfloat position[4] = {0,0,0, 1.0f})"))
+story.append(QA("Czemu pozycja swiatla to (0,0,0)? Przeciez lampa jest gdzies w pokoju.",
+    "Bo najpierw robie glMultMatrixf(worldMatrix), ktora przenosi uklad do miejsca wezla swiatla. "
+    "Wtedy (0,0,0) w tym ukladzie = faktyczna pozycja lampy w swiecie. OpenGL przeksztalca pozycje "
+    "swiatla aktualna macierza modelview, wiec to dziala.",
+    "Light.cpp -> renderSelf() (glMultMatrixf przed glLightfv POSITION)"))
+story.append(QA("Co to jest attenuation (tlumienie) i jaki ma wzor?",
+    "Spadek jasnosci z odlegloscia: 1/(kc + kl*d + kq*d^2), gdzie d to odleglosc od swiatla, kc "
+    "stala, kl liniowa, kq kwadratowa. Mniejsze wspolczynniki = swiatlo siega dalej. Ustawiamy "
+    "male wartosci, zeby caly pokoj byl rownomiernie oswietlony.",
+    "Light.cpp -> renderSelf() (GL_CONSTANT/LINEAR/QUADRATIC_ATTENUATION)"))
 story.append(QA("Dlaczego swiatla musza byc dodane do sceny przed geometria?",
-    "Bo renderRecursive przechodzi wezly po kolei i ustawia stan OpenGL na biezaco. Swiatlo "
-    "ustawia glLight dopiero gdy do niego dojdziemy. Geometria narysowana wczesniej nie 'widzi' "
-    "tego swiatla. Dlatego dodaje swiatla jako pierwsze dzieci roota."))
+    "Bo renderRecursive (Lukasz) przechodzi wezly po kolei i ustawia stan OpenGL na biezaco. "
+    "Swiatlo ustawia glLight dopiero gdy do niego dojdziemy. Geometria narysowana wczesniej nie "
+    "'widzi' jeszcze tego swiatla. Dlatego w grze dodaje swiatla jako pierwsze dzieci roota.",
+    "Light.cpp -> renderSelf(); kolejnosc w Gameplay.cpp (addChild swiatel najpierw)"))
+story.append(QA("Jak obsluguje wiele swiatel naraz?",
+    "Kazde swiatlo ma activeLightIndex (0..7), z ktorego licze GLenum lightId = GL_LIGHT0 + index. "
+    "Dzieki temu dwie lampy (index 0 i 1) nie nadpisuja sie - kazda steruje innym GL_LIGHTx. OpenGL "
+    "obsluguje do 8 swiatel jednoczesnie.",
+    "Light.cpp -> renderSelf() (GL_LIGHT0 + activeLightIndex); setLightIndex()"))
 
-story.append(H2("Tekstury"))
+story.append(H2("Tekstury - parser BMP"))
+story.append(QA("Jakie formaty BMP obsluguje twoj loader?",
+    "Tylko 24-bitowe nieskompresowane (BI_RGB, kompresja=0). Sprawdzam to czytajac z naglowka DIB "
+    "bpp (bits per pixel) i compression. Jezeli to nie 24-bit bez kompresji, zwracam false i gra "
+    "uzywa tekstury proceduralnej. Inne formaty (32-bit, RLE) sa odrzucane.",
+    "Texture.cpp -> loadBMP() (sprawdzenie bpp != 24 || compression != 0)"))
 story.append(QA("Dlaczego w BMP zamieniasz R z B?",
     "Bo BMP zapisuje piksele w kolejnosci BGR (niebieski, zielony, czerwony), a OpenGL chce RGB. "
-    "Wiec przy kopiowaniu biore bajt B na pozycje R i odwrotnie."))
+    "Przy kopiowaniu biore raw[src+2] (B) na pozycje R i raw[src+0] (R) na pozycje B. G zostaje w "
+    "srodku.",
+    "Texture.cpp -> loadBMP() (petla pixels[dst+0]=raw[src+2] itd.)"))
 story.append(QA("Czemu odwracasz wiersze obrazu?",
-    "BMP z dodatnia wysokoscia trzyma wiersze od dolu do gory (pierwszy wiersz pliku to dol "
-    "obrazu). OpenGL oczekuje od gory. Wiec wiersz srcRow = h-1-row, czyli czytam od konca."))
+    "BMP z dodatnia wysokoscia trzyma wiersze od dolu do gory (pierwszy wiersz pliku to dol obrazu). "
+    "OpenGL oczekuje od gory. Wiec srcRow = topDown ? row : (h-1-row) - dla zwyklego BMP czytam od "
+    "konca. Ujemna wysokosc w BMP oznacza juz top-down i wtedy nie odwracam.",
+    "Texture.cpp -> loadBMP() (srcRow = topDown ? row : h-1-row)"))
 story.append(QA("Co to jest rowStride / padding w BMP?",
-    "Kazdy wiersz BMP jest dopelniany zerami do wielokrotnosci 4 bajtow. rowStride = (w*3+3) & ~3 "
-    "to faktyczna dlugosc wiersza w pliku. Bez uwzglednienia tego obraz by sie 'przesuwal' "
-    "skosnie."))
-story.append(QA("Co to sa mipmapy i po co je liczysz?",
-    "To pomniejszone kopie tekstury (1/2, 1/4...). Gdy obiekt jest daleko, OpenGL uzywa mniejszej "
-    "wersji - inaczej tekstura migocze i szumi. Licze je recznie: kazdy poziom to srednia z "
-    "blokow 2x2 poprzedniego poziomu."))
-story.append(QA("Czym jest FBM / value noise w teksturach proceduralnych?",
-    "Value noise to losowe wartosci na siatce, plynnie interpolowane (smoothstep). FBM sumuje "
-    "kilka takich szumow o coraz drobniejszej skali i mniejszej sile - daje naturalny, "
-    "'chmurkowy' wzor. Uzywam go w drewnie, marmurze, cegłach i sufiecie."))
+    "Kazdy wiersz BMP jest dopelniany do wielokrotnosci 4 bajtow. rowStride = (w*3+3) & ~3 to "
+    "faktyczna dlugosc wiersza w pliku (z dopelnieniem). Bez uwzglednienia tego obraz by sie "
+    "'przesuwal' skosnie, bo zle bym liczyl poczatek kazdego wiersza.",
+    "Texture.cpp -> loadBMP() (rowStride = (w*3+3) & ~3)"))
+story.append(QA("Skad wiesz, gdzie w pliku zaczynaja sie piksele?",
+    "Z naglowka pliku (14 bajtow) czytam dataOffset (4 bajty od pozycji 10) - to przesuniecie do "
+    "danych pikseli. Robie fseek(f, dataOffset) zanim zaczne czytac piksele. Dzieki temu dziala "
+    "nawet jak naglowek ma niestandardowy rozmiar.",
+    "Texture.cpp -> loadBMP() (dataOffset, fseek)"))
 
-story.append(H2("Targets"))
+story.append(H2("Tekstury - generatory proceduralne"))
+story.append(QA("Jak dziala generateCheckerboard (szachownica)?",
+    "Dla kazdego piksela licze ktore pole szachownicy: (x/tileSize + y/tileSize) % 2. Parzyste = "
+    "kolor 1, nieparzyste = kolor 2. tileSize = size/tileCount. To czysta arytmetyka na indeksach "
+    "pikseli, bez zadnego szumu.",
+    "Texture.cpp -> generateCheckerboard()"))
+story.append(QA("Czym jest value noise i FBM w teksturach proceduralnych?",
+    "Value noise: losowe wartosci w rogach calkowitej kraty, wnetrze interpolowane plynnie "
+    "(smoothstep). FBM (Fractional Brownian Motion) sumuje kilka oktaw takiego szumu o coraz "
+    "wyzszej czestotliwosci i nizszej amplitudzie - daje naturalny, samopodobny wzor. Uzywam w "
+    "drewnie, marmurze, cegłach, sufiecie.",
+    "Texture.cpp -> valueNoise2D(), fbm2D() (anonimowy namespace)"))
+story.append(QA("Jak generujesz drewno (sloje)?",
+    "Licze odleglosc piksela od srodka tekstury, dodaje do niej zaburzenie z fbm (turbulencja). Z "
+    "tej odleglosci robie pile (dist*rings, czesc ulamkowa) - to daje koncentryczne kregi. "
+    "Interpoluje kolor miedzy ciemnym slojem a jasnym tlem wg pozycji w kregu.",
+    "Texture.cpp -> generateWood()"))
+story.append(QA("Jak generujesz cegly?",
+    "Dziele teksture na rzedy (rowHeight) i cegly (brickWidth = 2*rowHeight). Co drugi rzad "
+    "przesuwam o pol cegly (naprzemienny uklad). Tam gdzie jest fuga (mortarPx) maluje kolor "
+    "zaprawy, reszta to cegla z drobna wariacja koloru (hash per cegla + mikroszum). To daje "
+    "realistyczny mur.",
+    "Texture.cpp -> generateBricks()"))
+story.append(QA("Jak generujesz marmur?",
+    "Licze turbulencje (suma modulow szumu o malejacej amplitudzie), potem zyly = sin((x + "
+    "turbulencja*sila)*2pi). Modul i pierwiastek (pow 0.5) wyostrzaja przejscia. To daje wzor "
+    "falujacych zyl typowy dla marmuru.",
+    "Texture.cpp -> generateMarble()"))
+story.append(QA("Co to sa mipmapy i jak je liczysz?",
+    "To pomniejszone kopie tekstury (1/2, 1/4...). Gdy obiekt jest daleko, OpenGL uzywa mniejszej "
+    "wersji - inaczej tekstura migocze. Licze je recznie w petli: kazdy poziom to srednia z blokow "
+    "2x2 poprzedniego poziomu, wgrywana przez glTexImage2D z numerem poziomu (level).",
+    "Texture.cpp -> uploadToGPU() (petla while mipW>1 || mipH>1)"))
+story.append(QA("Dlaczego klasa Texture ma usuniety konstruktor kopiujacy?",
+    "Bo trzyma uchwyt GL (textureId). Kopia miala by ten sam id - i destruktor zwolnilby teksture "
+    "dwa razy (glDeleteTextures na tym samym id), co jest bledem. Dlatego = delete na kopiowaniu; "
+    "teksture trzymam przez shared_ptr.",
+    "Texture.h -> Texture(const Texture&) = delete;"))
+
+story.append(H2("Targets - cele"))
 story.append(QA("Po co pula celow zamiast tworzenia sfer na biezaco?",
     "Tworzenie i niszczenie obiektow OpenGL co chwile jest kosztowne i ryzykowne. Lepiej raz "
-    "stworzyc 3 sfery i tylko je chowac (setVisible false) i pokazywac. To wzorzec 'object pool'."))
+    "stworzyc MAX_TARGETS (3) sfery i tylko je chowac (setVisible false) i pokazywac. To wzorzec "
+    "'object pool'. Kazdy aktywny cel ma nodeIndex wskazujacy ktora sfera go reprezentuje.",
+    "Targets.cpp -> initTargetPool(); ShootingGallery.h -> targetNodePool_"))
 story.append(QA("Dlaczego ruch celu liczysz sinusem?",
-    "Sinus daje gladki ruch tam i z powrotem (ping-pong) bez skokow na koncach. pos = base + os * "
-    "zakres * sin(czas*predkosc + faza). Faza jest losowa, zeby cele nie ruszaly sie rownoczesnie."))
+    "Sinus daje gladki ruch tam i z powrotem (ping-pong) bez skokow na koncach. pos = basePos + "
+    "moveAxis * moveRange * sin(totalTime*moveSpeed + movePhase). Dodatkowo lekkie kolysanie w "
+    "pionie (drugi sinus na Y).",
+    "Targets.cpp -> currentTargetPos()"))
+story.append(QA("Po co kazdy cel ma losowa faze (movePhase)?",
+    "Zeby cele w jednej fali nie ruszaly sie idealnie zsynchronizowane (co wygladaloby sztucznie). "
+    "Losowa faza przesuwa sinus kazdego celu, wiec poruszaja sie niezaleznie.",
+    "Targets.cpp -> spawnWave() (movePhase = distR(rng_)*6.28); currentTargetPos()"))
 story.append(QA("Czemu ta sama funkcja liczy pozycje przy rysowaniu i przy strzale?",
-    "Zeby strzal trafial dokladnie tam, gdzie cel jest w danej klatce. Gdybym liczyl pozycje "
-    "inaczej do rysowania, a inaczej do kolizji, celowanie byloby niesprawiedliwe - widzialbym cel "
-    "gdzie indziej niz jest 'naprawde'."))
+    "Zeby strzal trafial dokladnie tam, gdzie cel jest w danej klatce. Gdybym liczyl pozycje inaczej "
+    "do rysowania, a inaczej do kolizji, celowanie byloby niesprawiedliwe - widzialbym cel gdzie "
+    "indziej niz jest 'naprawde'. currentTargetPos jest wolane i w onUpdate (render) i w onShoot.",
+    "Targets.cpp -> currentTargetPos(); uzycie w Gameplay.cpp onUpdate/onShoot"))
+story.append(QA("Jak losujesz rozmiar fali (1-3 cele)?",
+    "Losuje liczbe r w [0,1). Jezeli r<0.5 -> 1 cel, r<0.85 -> 2 cele, inaczej 3. Czyli najczesciej "
+    "1, czasem 2, rzadko 3. Potem dla kazdego celu losuje pozycje i tryb ruchu.",
+    "Targets.cpp -> spawnWave() (waveSize_ = r<0.5 ? 1 : ...)"))
 story.append(QA("Jak unikasz pojawienia sie celu w scianie albo w przeszkodzie?",
-    "Losuje pozycje i sprawdzam warunki: dystans od gracza, czy nie w przeszkodzie (z marginesem "
-    "na caly zakres ruchu), czy nie za blisko innego celu. Jezeli warunek niespelniony, losuje "
-    "ponownie - do 60 prob. Margines uwzglednia ruch, wiec cel nie wjedzie w kolumne podczas "
-    "oscylacji."))
+    "Losuje pozycje i sprawdzam 3 warunki: dystans od gracza (>MIN), czy nie w przeszkodzie "
+    "(isInsideObstacle z marginesem na CALY zakres ruchu), czy nie za blisko innego celu z fali. "
+    "Jezeli ktorys warunek niespelniony, losuje ponownie - do 60 prob. Po 60 stawiam cel statyczny "
+    "w bezpiecznym miejscu (fallback).",
+    "Targets.cpp -> spawnWave() (petla attempt < 60); isInsideObstacle z Obstacles.cpp"))
+story.append(QA("Czemu margines przy spawnie uwzglednia zakres ruchu celu?",
+    "Bo cel sie porusza. Gdybym sprawdzal tylko pozycje startowa, ruchomy cel moglby wjechac w "
+    "kolumne podczas oscylacji. Margines = TARGET_RADIUS + moveRange + zapas gwarantuje, ze caly "
+    "tor ruchu jest wolny od przeszkod.",
+    "Targets.cpp -> spawnWave() (margin = TARGET_RADIUS + t.moveRange + 0.25)"))
 
 build("Kacper_Osoba3.pdf", "Kacper (Osoba 3) - Kamera, swiatlo, tekstury, cele", story)

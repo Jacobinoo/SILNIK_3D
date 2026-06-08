@@ -167,65 +167,174 @@ story.append(P("<b>maxT</b> to odleglosc do trafionego celu. Jezeli ktoras przes
 # ============ 5. Q&A ============
 story.append(PageBreak())
 story.append(H1("5. Pytania od wykladowcy - przygotowanie"))
+story.append(P("Przy kazdym pytaniu jest pasek <b>Gdzie</b> - mowi w ktorym pliku i w ktorej "
+               "funkcji szukac odpowiedzi, zebys w trakcie obrony szybko otworzyl wlasciwe miejsce."))
 
-story.append(H2("PrimitiveNode - ogolne"))
+story.append(H2("PrimitiveNode - architektura"))
 story.append(QA("Dlaczego nie uzywacie gotowych funkcji jak glutSolidSphere?",
     "Bo wymaganiem projektu bylo, zeby grupa sama napisala geometrie prymitywow. FreeGLUT ma "
     "tylko pomagac z oknem i wejsciem. Dlatego kazdy ksztalt rysuje recznie przez glBegin/glEnd, "
-    "samodzielnie liczac wierzcholki, normalne i UV."))
-story.append(QA("Co to jest normalna i po co ja podajesz?",
-    "Normalna to wektor prostopadly do powierzchni - mowi, w ktora strone 'patrzy' scianka. "
-    "OpenGL uzywa jej do liczenia oswietlenia: im bardziej normalna skierowana do swiatla, tym "
-    "jasniejszy punkt. Bez normalnych model bylby plaski, bez cieniowania."))
-story.append(QA("Co to sa wspolrzedne UV?",
-    "To wspolrzedne na teksturze (od 0 do 1). Mowia, ktory fragment obrazka nalepic na dany "
-    "wierzcholek. glTexCoord2f(u,v) przed glVertex3f przypisuje punktowi miejsce na teksturze."))
+    "samodzielnie liczac wierzcholki, normalne i UV.",
+    "PrimitiveNode.cpp -> drawGeometry() w kazdej klasie"))
 story.append(QA("Dlaczego drawGeometry jest czysto wirtualna (= 0)?",
     "Bo PrimitiveNode to klasa abstrakcyjna - nie istnieje 'ogolny prymityw', istnieje konkretny "
     "szescian czy sfera. =0 wymusza, ze kazda podklasa musi napisac wlasne rysowanie. Wspolne "
-    "rzeczy (material, transformacja) sa w renderSelf w bazie - to wzorzec szablonu metody."))
+    "rzeczy (material, transformacja, tekstura) sa w renderSelf w bazie - to wzorzec szablonu "
+    "metody (template method).",
+    "PrimitiveNode.h -> virtual void drawGeometry() const = 0;"))
+story.append(QA("Co dokladnie robi renderSelf w PrimitiveNode?",
+    "Ustawia material przez glMaterialfv (ambient/diffuse/specular/shininess), ustawia kolor "
+    "fallback przez glColor3f (na wypadek wylaczonego swiatla), wlacza teksture jezeli jest, robi "
+    "glPushMatrix + glMultMatrixf(world) + drawGeometry() + glPopMatrix, na koncu wylacza teksture. "
+    "To powtarzalna otoczka wokol rysowania konkretnego ksztaltu.",
+    "PrimitiveNode.cpp -> PrimitiveNode::renderSelf()"))
 story.append(QA("Po co glPushMatrix / glPopMatrix wokol rysowania?",
-    "glPushMatrix zapisuje aktualna macierz, glMultMatrixf nakłada transformacje obiektu, rysujemy, "
-    "a glPopMatrix przywraca poprzedni stan. Dzieki temu transformacja jednego obiektu nie wplywa "
-    "na nastepne."))
+    "glPushMatrix zapisuje aktualna macierz na stosie, glMultMatrixf naklada transformacje obiektu, "
+    "rysujemy, a glPopMatrix przywraca poprzedni stan. Dzieki temu transformacja jednego obiektu "
+    "nie wplywa na nastepny rysowany.",
+    "PrimitiveNode.cpp -> PrimitiveNode::renderSelf()"))
+story.append(QA("Czemu ustawiasz i glMaterial, i glColor3f naraz?",
+    "glMaterial dziala gdy oswietlenie jest WLACZONE. glColor3f jest fallbackiem - gdy gracz "
+    "wylaczy swiatlo (klawisz L), liczy sie kolor z glColor. Ustawiam oba, zeby obiekt byl "
+    "widoczny w obu trybach.",
+    "PrimitiveNode.cpp -> PrimitiveNode::renderSelf() (glColor3f)"))
+story.append(QA("Co to jest GL_MODULATE przy teksturze?",
+    "Tryb laczenia tekstury z kolorem/oswietleniem. MODULATE mnozy kolor tekstury przez kolor "
+    "oswietlenia obiektu - dzieki temu oteksturowany obiekt nadal reaguje na swiatlo (ciemnieje w "
+    "cieniu). Gdyby bylo GL_REPLACE, tekstura zastapilaby oswietlenie calkowicie.",
+    "PrimitiveNode.cpp -> renderSelf() (glTexEnvf ... GL_MODULATE)"))
 
-story.append(H2("Geometria ksztaltow"))
-story.append(QA("Dlaczego dla sfery normalna = pozycja wierzcholka?",
-    "Bo w sferze jednostkowej (promien 1) kierunek od srodka do punktu jest jednoczesnie "
-    "kierunkiem 'na zewnatrz', czyli normalna. Wystarczy ten sam wektor uzyc raz jako pozycje "
-    "(po przemnozeniu przez promien) i raz jako normalna."))
+story.append(H2("Pojecia: normalne i UV"))
+story.append(QA("Co to jest normalna i po co ja podajesz?",
+    "Normalna to wektor prostopadly do powierzchni - mowi, w ktora strone 'patrzy' scianka. OpenGL "
+    "uzywa jej do liczenia oswietlenia: im bardziej normalna skierowana do swiatla, tym jasniejszy "
+    "punkt. Bez normalnych model bylby plaski, bez cieniowania.",
+    "PrimitiveNode.cpp -> glNormal3f w kazdym drawGeometry()"))
+story.append(QA("Co to sa wspolrzedne UV?",
+    "To wspolrzedne na teksturze (od 0 do 1). Mowia, ktory fragment obrazka nalepic na dany "
+    "wierzcholek. glTexCoord2f(u,v) przed glVertex3f przypisuje punktowi miejsce na teksturze. "
+    "u to pozioma os tekstury, v pionowa.",
+    "PrimitiveNode.cpp -> glTexCoord2f w kazdym drawGeometry()"))
+story.append(QA("Czemu wartosci normalnej musza byc znormalizowane?",
+    "Bo OpenGL liczy oswietlenie z cosinusa kata, ktory zaklada wektory dlugosci 1. Niezormalizowana "
+    "normalna zafalszowalaby jasnosc. W silniku mamy tez wlaczone glEnable(GL_NORMALIZE), ktore "
+    "normalizuje normalne automatycznie po skalowaniu - to wazne, bo skala psuje dlugosc "
+    "normalnych.",
+    "Engine.cpp -> glEnable(GL_NORMALIZE); normalne liczone w PrimitiveNode.cpp"))
+
+story.append(H2("Geometria - szescian i walec"))
+story.append(QA("Jak rysujesz szescian? Ile scian, jakie prymitywy?",
+    "6 scian jako GL_QUADS (czworokaty). Kazda sciana ma jedna wspolna normalna (np. przod ma "
+    "(0,0,1)) i 4 wierzcholki z UV od (0,0) do (1,1). Wszystkie wspolrzedne licze z polowy boku "
+    "(halfSize), wiec szescian jest wycentrowany w srodku.",
+    "PrimitiveNode.cpp -> CubeNode::drawGeometry()"))
+story.append(QA("Jak rysujesz boczna powierzchnie walca?",
+    "Jako GL_TRIANGLE_STRIP po obwodzie - dla kazdego kata stawiam dwa wierzcholki (gorny i dolny). "
+    "Normalna jest pozioma, skierowana od osi na zewnatrz (cos(kat),0,sin(kat)). Gora i dol walca "
+    "to osobne TRIANGLE_FAN (dyski). slices to liczba podzialow - wiecej = gladszy walec.",
+    "PrimitiveNode.cpp -> CylinderNode::drawGeometry()"))
+story.append(QA("Czemu normalna na boku walca nie zalezy od promienia?",
+    "Bo normalna to tylko KIERUNEK (na zewnatrz od osi), a nie pozycja. Kierunek jest taki sam "
+    "niezaleznie od tego, jak gruby jest walec - dlatego uzywam czystego (cos,0,sin) bez mnozenia "
+    "przez promien. Mnoze przez promien tylko pozycje wierzcholka.",
+    "PrimitiveNode.cpp -> CylinderNode::drawGeometry()"))
+
+story.append(H2("Geometria - sfera, stozek, torus"))
+story.append(QA("Jak parametryzujesz sfere?",
+    "Dwoma katami: theta (od bieguna, 0..pi) dzieli na poziome pasy (stacks), phi (dlugosc, 0..2pi) "
+    "na pionowe wycinki (slices). Pozycja punktu to (sin(theta)*cos(phi), cos(theta), "
+    "sin(theta)*sin(phi)) razy promien. Rysuje pasami jako TRIANGLE_STRIP.",
+    "PrimitiveNode.cpp -> SphereNode::drawGeometry()"))
+story.append(QA("Dlaczego dla sfery normalna = pozycja wierzcholka (bez promienia)?",
+    "Bo w sferze kierunek od srodka do punktu jest jednoczesnie kierunkiem 'na zewnatrz', czyli "
+    "normalna. Ten sam wektor uzywam raz jako normalna (czysty, dlugosc 1) i raz jako pozycje "
+    "(pomnozony przez promien).",
+    "PrimitiveNode.cpp -> SphereNode::drawGeometry()"))
 story.append(QA("Czemu stozek rysujesz osobnymi trojkatami, a nie TRIANGLE_FAN?",
     "W wachlarzu czubek to jeden wspolny wierzcholek z jedna normalna - cieniowanie wokol czubka "
-    "wyglada wtedy plasko. Rysujac osobne trojkaty, czubek kazdego dostaje normalna usredniona z "
-    "dwoch sasiednich scianek, wiec swiatlo plynnie przechodzi dookola."))
+    "wyglada plasko/brzydko. Rysujac N osobnych trojkatow, czubek kazdego dostaje normalna "
+    "usredniona z dwoch sasiednich scianek, wiec swiatlo plynnie przechodzi dookola stozka.",
+    "PrimitiveNode.cpp -> ConeNode::drawGeometry() (petla GL_TRIANGLES)"))
 story.append(QA("Jak liczysz nachylenie normalnej na bocznej sciance stozka?",
     "Z proporcji promienia do wysokosci. L=sqrt(r^2+h^2) to dlugosc tworzacej. Skladowa pozioma "
-    "normalnej to h/L, pionowa to r/L. Pionowa jest dodatnia, bo stozek zwęża sie ku gorze, wiec "
-    "powierzchnia lekko patrzy do gory."))
-story.append(QA("Co robi setUVScale w PlaneNode?",
-    "Mnozy wspolrzedne UV. Domyslnie 1 powtorzenie tekstury na metr - na scianie 30m wychodzi 30 "
-    "drobnych kafelkow. Mniejsza skala (np. 0.2) daje wieksze, ladniejsze kafelki. To prosty "
-    "trik bez zmiany samej geometrii."))
+    "normalnej to nh=h/L, pionowa nv=r/L. Pionowa jest dodatnia, bo stozek zwęża sie ku gorze, "
+    "wiec powierzchnia lekko patrzy w gore. Normalna w kierunku kata: (cos*nh, nv, sin*nh).",
+    "PrimitiveNode.cpp -> ConeNode::drawGeometry() (L, nh, nv)"))
+story.append(QA("Jak parametryzowany jest torus?",
+    "Dwoma katami u (wokol calego pierscienia, 0..2pi) i v (wokol rurki, 0..2pi). Pozycja: "
+    "((R+r*cos v)*cos u, r*sin v, (R+r*cos v)*sin u), gdzie R to glowny promien (do srodka rurki), "
+    "r maly (grubosc rurki). Normalna to kierunek od srodka rurki do punktu. Torus jest u nas tylko "
+    "dekoracyjny (zyrandol).",
+    "PrimitiveNode.cpp -> TorusNode::drawGeometry()"))
 
-story.append(H2("Obstacles i kolizje"))
-story.append(QA("Jak dziala wypychanie gracza z kolumny?",
-    "Licze odleglosc gracza od osi kolumny w plaszczyznie XZ. Jezeli jest mniejsza niz suma "
-    "promieni (kolumny + gracza), gracz jest 'w srodku'. Licze brakujacy dystans i przesuwam "
-    "gracza wzdluz linii srodek-gracz tak, zeby znalazl sie dokladnie na brzegu."))
-story.append(QA("Czemu przechowujesz przeszkode dwa razy (wezel + dane kolizji)?",
-    "Wezel sceny (CylinderNode) sluzy tylko do rysowania. Do fizyki potrzebuje czystych danych "
-    "(pozycja, promien, wysokosc) bez calego obiektu OpenGL. Rozdzielenie 'co widac' od 'co jest "
-    "fizyczne' jest czytelniejsze i szybsze."))
-story.append(QA("Jak dzialaja kolizje ze skrzynia (prostopadloscianem)?",
-    "Znajduje punkt na powierzchni skrzyni najblizszy graczowi (przez clamp wspolrzednych do "
-    "zakresu skrzyni). Jezeli gracz jest blizej tego punktu niz jego promien, wypycham go na "
-    "zewnatrz. Gdy gracz jest w samym srodku, wybieram najblizsza sciane i wypycham w jej strone."))
-story.append(QA("Jak sprawdzasz, ze przeszkoda zaslania cel?",
-    "Po znalezieniu trafionego celu mam odleglosc do niego (maxT). Sprawdzam, czy ktoras przeszkoda "
-    "jest przeciecata przez ten sam promien przy mniejszym t. Jezeli tak - strzal trafia w "
-    "przeszkode pierwszy, wiec liczy sie jako pudlo."))
-story.append(QA("Czemu w kolizjach uzywasz distSq (kwadratu odleglosci), a nie samej odleglosci?",
+story.append(H2("Plaszczyzna i UV scaling"))
+story.append(QA("Co robi setUVScale w PlaneNode i jak jest zaimplementowane?",
+    "Mnozy wspolrzedne UV. uMax = planeWidth * planeUVScale, vMax = planeDepth * planeUVScale. "
+    "Domyslnie skala 1 daje 1 powtorzenie na metr - na scianie 30m to 30 drobnych kafelkow. "
+    "Mniejsza skala (0.2) daje wieksze kafelki. Sama geometria sie nie zmienia, tylko UV.",
+    "PrimitiveNode.cpp -> PlaneNode::drawGeometry(); PlaneNode.h -> setUVScale()"))
+story.append(QA("Czemu PlaneNode ma normalna w gore (+Y)?",
+    "Bo to plaszczyzna pozioma (w plaszczyznie XZ), domyslnie podloga. Normalna (0,1,0) patrzy w "
+    "gore. Zeby zrobic z niej sciane czy sufit, Lukasz obraca ja w Room.cpp - obrot zmienia tez "
+    "kierunek normalnej.",
+    "PrimitiveNode.cpp -> PlaneNode::drawGeometry() (glNormal3f(0,1,0))"))
+
+story.append(H2("Obstacles - rozmieszczenie"))
+story.append(QA("Ile i jakich przeszkod jest w pokoju?",
+    "6 kolumn (CylinderNode), 3 stozki (ConeNode) i 2 skrzynie (CubeNode ze skala). Definiuje je "
+    "jako listy struktur (CylDef, ConeDef, BoxDef) z pozycja i wymiarami, a potem w petli tworze "
+    "wezel sceny i wpis kolizji. Rozmieszczone sa po calym pokoju (przednia i tylna polowa).",
+    "Obstacles.cpp -> buildObstacles() (wektory cyls, cones, boxes)"))
+story.append(QA("Czemu skrzynia to CubeNode ze skala, a nie osobna klasa?",
+    "Bo skrzynia to po prostu przeskalowany szescian. Zamiast pisac nowy ksztalt, tworze CubeNode "
+    "o boku 1 i ustawiam setScale(w,h,d). Macierz lokalna (Lukasz) zajmie sie skalowaniem. Mniej "
+    "kodu, ten sam efekt.",
+    "Obstacles.cpp -> buildObstacles() (node->setScale przy skrzyniach)"))
+story.append(QA("Czemu przechowujesz przeszkode dwa razy (wezel sceny + dane kolizji)?",
+    "Wezel (CylinderNode) sluzy tylko do RYSOWANIA. Do FIZYKI potrzebuje czystych danych (pozycja, "
+    "promien, wysokosc) bez calego obiektu OpenGL. Rozdzielenie 'co widac' od 'co jest fizyczne' "
+    "jest czytelniejsze i szybsze - kolizje nie musza znac OpenGL.",
+    "Obstacles.cpp -> buildObstacles(); ShootingGallery.h -> cylinderObs_, coneObs_, boxObs_"))
+
+story.append(H2("Obstacles - kolizje gracza"))
+story.append(QA("Jak dziala wypychanie gracza z kolumny (krok po kroku)?",
+    "Licze wektor od osi kolumny do gracza w plaszczyznie XZ (dx,dz) i kwadrat odleglosci distSq. "
+    "Jezeli distSq < (promien kolumny + promien gracza)^2, gracz jest w srodku. Licze dist=sqrt, "
+    "potem push=(minR-dist)/dist i przesuwam gracza o dx*push, dz*push - czyli wzdluz linii "
+    "srodek->gracz az na brzeg.",
+    "Obstacles.cpp -> applyObstacleCollision() (petla po cylinderObs_)"))
+story.append(QA("Czemu w kolizjach uzywasz distSq, a nie samej odleglosci?",
     "Pierwiastek (sqrt) jest wolny. Porownanie distSq < minR*minR daje ten sam wynik co dist < "
-    "minR, ale bez pierwiastka. Sqrt licze dopiero, gdy faktycznie musze wypchnac gracza."))
+    "minR, ale bez pierwiastka. Sqrt licze dopiero gdy faktycznie musze wypchnac gracza (do "
+    "policzenia kierunku).",
+    "Obstacles.cpp -> applyObstacleCollision()"))
+story.append(QA("Jak dzialaja kolizje ze skrzynia (prostopadloscianem)?",
+    "Znajduje punkt na powierzchni skrzyni najblizszy graczowi - przez clamp wspolrzednych gracza "
+    "do zakresu [boxMin, boxMax]. Jezeli gracz jest blizej tego punktu niz jego promien, wypycham "
+    "go na zewnatrz. Gdy gracz wszedl do samego srodka (distSq~0), wybieram najblizsza sciane "
+    "(min z 4 odleglosci) i wypycham w jej strone.",
+    "Obstacles.cpp -> applyObstacleCollision() (petla po boxObs_, clamp + 4 sciany)"))
+story.append(QA("Czemu stozek w kolizjach traktujesz jak walec?",
+    "Bo gracz i tak nie wejdzie pod zwężajacy sie nawis stozka (jest za niski/za szeroki u dolu). "
+    "Wystarczy traktowac go jak walec o promieniu podstawy - prostsze, a efekt dla gracza "
+    "identyczny. Pelny ksztalt stozka liczę dopiero przy strzale (raycast).",
+    "Obstacles.cpp -> applyObstacleCollision() (petla po coneObs_)"))
+
+story.append(H2("Obstacles - blokowanie strzalu"))
+story.append(QA("Jak sprawdzasz, ze przeszkoda zaslania cel?",
+    "Po znalezieniu trafionego celu mam odleglosc do niego (maxT). W obstacleBlocksRay sprawdzam, "
+    "czy ktoras przeszkoda jest przecieta przez ten sam promien przy t < maxT. Jezeli tak - "
+    "przeszkoda jest blizej niz cel, wiec strzal w nia trafia pierwszy i liczy sie jako pudlo.",
+    "Obstacles.cpp -> obstacleBlocksRay(); wolane z Gameplay.cpp onShoot()"))
+story.append(QA("Jakich funkcji uzywasz do sprawdzenia przeciecia z kazdym typem przeszkody?",
+    "rayCylinderIntersect dla kolumn, rayConeIntersect dla stozkow, rayAABBIntersect dla skrzyn. "
+    "Wszystkie trzy napisal Lukasz w Math3D. Ja przechodze petla po moich listach przeszkod i "
+    "wolam odpowiednia funkcje, sprawdzajac czy t miesci sie w (0, maxT).",
+    "Obstacles.cpp -> obstacleBlocksRay(); Math3D.cpp (implementacje raycastow)"))
+story.append(QA("Co by sie stalo, gdybys nie sprawdzal blokowania strzalu?",
+    "Gracz moglby strzelac przez sciany i kolumny - trafialby cele schowane za przeszkodami, czego "
+    "nie widzi. Byloby to nierealistyczne i psuloby sens chowania sie celow. Dlatego raycast do "
+    "celu jest 'przycinany' przez przeszkody.",
+    "Obstacles.cpp -> obstacleBlocksRay()"))
 
 build("Rogert_Osoba2.pdf", "Rogert (Osoba 2) - Prymitywy 3D i kolizje", story)

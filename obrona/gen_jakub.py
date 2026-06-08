@@ -188,79 +188,186 @@ add_custom_target(copy_assets ALL COMMAND ... copy_directory assets ...)""",
 # ============ 7. Q&A ============
 story.append(PageBreak())
 story.append(H1("6. Pytania od wykladowcy - przygotowanie"))
+story.append(P("Przy kazdym pytaniu jest pasek <b>Gdzie</b> - mowi w ktorym pliku i w ktorej "
+               "funkcji szukac odpowiedzi, zebys w trakcie obrony szybko otworzyl wlasciwe miejsce."))
+
+story.append(H2("Engine - inicjalizacja"))
+story.append(QA("Co robi setGraphicsParams i dlaczego dopiero po nim mozna uzywac OpenGL?",
+    "Tworzy okno (glutCreateWindow) i kontekst OpenGL, ustawia tryb wyswietlania (depth, double "
+    "buffer), wlacza oswietlenie i rejestruje callbacki. Dopiero gdy istnieje kontekst GL, mozna "
+    "wgrywac tekstury - dlatego gra tworzy tekstury PO tym wywolaniu.",
+    "Engine.cpp -> setGraphicsParams(); main.cpp (kolejnosc wywolan)"))
+story.append(QA("Co to jest double buffering i depth buffer?",
+    "Double buffering: rysujemy do ukrytego bufora, a na koniec klatki podmieniamy go z widocznym "
+    "(glutSwapBuffers) - dzieki temu nie widac rysowania w trakcie, obraz nie miga. Depth buffer "
+    "(z-buffer): pamieta glebokosc kazdego piksela, zeby blizsze obiekty zaslanialy dalsze.",
+    "Engine.cpp -> setGraphicsParams() (GLUT_DOUBLE, GLUT_DEPTH); render() (glutSwapBuffers)"))
 
 story.append(H2("Engine - petla i czas"))
 story.append(QA("Jak dziala petla glowna w waszym silniku?",
     "FreeGLUT po glutMainLoop wola zarejestrowane callbacki. timerCallback (onTimer) odpala sie co "
-    "1000/targetFPS ms - tam licze dt, aktualizuje logike i wolam glutPostRedisplay, ktore prosi "
-    "o przerysowanie (displayCallback -> render). Potem planuje kolejny timer. Tak kreci sie "
-    "petla 'licz -> rysuj'."))
+    "1000/targetFPS ms - tam licze dt, aktualizuje logike i wolam glutPostRedisplay, ktore prosi o "
+    "przerysowanie (displayCallback -> render). Potem planuje kolejny timer. Tak kreci sie petla "
+    "'licz -> rysuj'.",
+    "Engine.cpp -> onTimer(), render(), run() (glutMainLoop)"))
 story.append(QA("Co to jest dt i dlaczego mnozysz przez nie ruch?",
-    "dt to czas od poprzedniej klatki w sekundach. Mnozac predkosc przez dt, dostaje faktyczny "
-    "dystans (droga = predkosc * czas). Dzieki temu przy 30 i 120 FPS gracz porusza sie tak samo "
-    "szybko - inaczej przy wyzszym FPS ruszalby sie szybciej."))
+    "dt to czas od poprzedniej klatki w sekundach: (now - lastTickMs)/1000. Mnozac predkosc przez "
+    "dt, dostaje faktyczny dystans (droga = predkosc * czas). Dzieki temu przy 30 i 120 FPS gracz "
+    "porusza sie tak samo szybko - inaczej przy wyzszym FPS ruszalby sie szybciej.",
+    "Engine.cpp -> onTimer() (float dt = (now-lastTickMs)/1000.0f)"))
 story.append(QA("Jak realizujecie zmienna szybkosc odswiezania?",
-    "targetFPS steruje interwalem timera (1000/targetFPS ms). Klawisze +/- zmieniaja go o 10. "
-    "Pokazuje go na HUD obok zmierzonego FPS. To pokazuje, ze petla jest sterowalna."))
+    "targetFPS steruje interwalem timera (glutTimerFunc(1000/targetFPS,...)). Klawisze +/- "
+    "zmieniaja targetFPS o 10 (z ograniczeniem 5..240). Zmierzone i docelowe FPS pokazuje na HUD. "
+    "To pokazuje, ze petla jest sterowalna - spelnia wymaganie 'zmienna szybkosc odswiezania'.",
+    "Engine.cpp -> handleKeyboard() (case '+'/'-'); drawHUD() (FPS); onTimer() (glutTimerFunc)"))
+story.append(QA("Czemu klawisze +/- obsugujesz w handleKeyboard, a nie sprawdzasz keys[] co klatke?",
+    "Bo sprawdzanie keys['+'] co klatke przy 60 FPS zmienialoby FPS 60 razy na sekunde - jedno "
+    "nacisniecie skakaloby o duzo. handleKeyboard odpala sie RAZ na nacisniecie klawisza, wiec "
+    "kazde wcisniecie to dokladnie jedna zmiana o 10. To byl realny bug, ktory naprawilem.",
+    "Engine.cpp -> handleKeyboard() (case '+': case '=': setTargetFPS(...))"))
 story.append(QA("Jak dziala pauza?",
     "Flaga paused. W onTimer, gdy paused, pomijam logike gry (nie wolam updateCallback), ale dalej "
-    "rysuje (zeby pokazac napis PAUZA). Aktualizuje lastTickMs, zeby po wznowieniu dt nie bylo "
-    "ogromne. ESC przelacza pauze, Q w pauzie wychodzi."))
+    "rysuje (glutPostRedisplay) zeby pokazac napis PAUZA. Aktualizuje lastTickMs, zeby po wznowieniu "
+    "dt nie bylo ogromne (inaczej gracz 'przeskoczylby'). ESC przelacza pauze, Q w pauzie wychodzi.",
+    "Engine.cpp -> onTimer() (if paused), togglePause(); handleKeyboard() (case 27, case 'q')"))
 
-story.append(H2("Engine - wejscie i callbacki"))
-story.append(QA("Dlaczego callbacki GLUT sa statyczne?",
-    "FreeGLUT jest biblioteka C - przyjmuje wskazniki na zwykle funkcje, nie metody klasy (te maja "
-    "ukryty wskaznik this). Dlatego robie statyczne funkcje, ktore przez globalny wskaznik "
-    "'instance' wolaja prawdziwe metody obiektu Engine. To typowy mostek C/C++."))
+story.append(H2("Engine - wejscie i mysz"))
+story.append(QA("Jak obslugujesz klawiature - czemu tablica keys[256]?",
+    "GLUT wola keyboardDown gdy klawisz wcisniety i keyboardUp gdy puszczony. Zapisuje keys[key] = "
+    "true/false. Dzieki temu gra moze pytac isKeyDown('w') w dowolnej chwili (ruch ciagly). Akcje "
+    "jednorazowe (strzal, pauza, FPS) obsuguje od razu w handleKeyboard.",
+    "Engine.cpp -> handleKeyboard() (keys[key]=isDown); isKeyDown() w Engine.h"))
 story.append(QA("Jak dziala free mouse look?",
-    "Chowam kursor i po kazdym ruchu liczę przesuniecie wzgledem srodka ekranu, dodaje do "
-    "yaw/pitch, a potem przesuwam kursor z powrotem na srodek (glutWarpPointer). Dzieki temu kursor "
-    "nigdy nie dochodzi do krawedzi i mozna obracac sie bez konca."))
+    "Chowam kursor (glutSetCursor NONE). Po kazdym ruchu liczę przesuniecie wzgledem srodka ekranu "
+    "(x-cx, y-cy), dodaje do yaw/pitch, ograniczam pitch, a potem przesuwam kursor z powrotem na "
+    "srodek (glutWarpPointer). Dzieki temu kursor nigdy nie dochodzi do krawedzi i mozna obracac "
+    "sie w nieskonczonosc.",
+    "Engine.cpp -> handleMouseMotion() (galaz freeMouseLook), setFreeMouseLook()"))
+story.append(QA("Po co warunek if (x==cx && y==cy) return w handleMouseMotion?",
+    "Bo glutWarpPointer (przesuniecie kursora na srodek) SAM generuje zdarzenie ruchu myszy. Bez "
+    "tego warunku zdarzenie z warpu byloby liczone jako ruch gracza i kamera 'drgalaby'. Ignoruje "
+    "wiec zdarzenie, gdy kursor jest dokladnie na srodku (czyli to nasz wlasny warp).",
+    "Engine.cpp -> handleMouseMotion() (if x==cx && y==cy return)"))
+story.append(QA("Czemu LPM strzela tylko w trybie freeMouseLook?",
+    "W trybie FPP (gra) lewy przycisk = strzal. W trybie orbity (test silnika) lewy przycisk sluzy "
+    "do obracania kamery przeciaganiem. Wiec strzelam tylko, gdy freeMouseLook jest wlaczony - "
+    "inaczej LPM ma inne zadanie.",
+    "Engine.cpp -> handleMouse() (if freeMouseLook && shootCallback)"))
+
+story.append(H2("Engine - callbacki i architektura"))
+story.append(QA("Dlaczego callbacki GLUT sa statyczne?",
+    "FreeGLUT jest biblioteka C - przyjmuje wskazniki na zwykle funkcje, nie metody klasy (metoda "
+    "ma ukryty parametr this, wiec nie pasuje do typu zwyklej funkcji). Robie wiec statyczne "
+    "funkcje, ktore przez globalny wskaznik 'instance' wolaja prawdziwe metody obiektu Engine.",
+    "Engine.cpp -> displayCallback(), timerCallback() itd.; static Engine* instance"))
+story.append(QA("Co to jest wskaznik instance i kiedy jest ustawiany?",
+    "To statyczny wskaznik na jedyny obiekt Engine, ustawiany w konstruktorze (instance = this). "
+    "Statyczne callbacki uzywaja go, zeby dotrzec do metod instancji. To podejscie singleton-like - "
+    "zakladamy jeden silnik na program.",
+    "Engine.cpp -> konstruktor Engine() (instance = this)"))
 story.append(QA("Po co callbacki (std::function) zamiast wpisac logike gry wprost w silnik?",
     "Zeby silnik byl niezalezny od konkretnej gry. Engine wie tylko 'jest nowa klatka' i wola "
-    "podana funkcje. Mozna podpiac dowolna gre bez zmiany silnika. To luzne sprzezenie - dobra "
-    "praktyka projektowa."))
+    "podana funkcje. Mozna podpiac dowolna gre bez zmiany silnika - luzne sprzezenie. Gra rejestruje "
+    "swoje metody przez setUpdateCallback itd. w main.cpp.",
+    "Engine.h -> setUpdateCallback itd.; main.cpp -> rejestracja lambd"))
 story.append(QA("Co to jest CameraControlMode?",
-    "Przelacznik kto rzadzi kamera. ENGINE_ORBIT - silnik sam obraca kamera (tryb testowy). "
-    "GAME_CONTROLLED - silnik nie rusza kamery, robi to gra w swoim onUpdate (FPP gracza). Gra "
-    "ustawia GAME_CONTROLLED."))
+    "Przelacznik kto rzadzi kamera. ENGINE_ORBIT - silnik sam obraca kamera z WASD (tryb testowy). "
+    "GAME_CONTROLLED - silnik nie rusza kamery, robi to gra w onUpdate (FPP gracza). Gra ustawia "
+    "GAME_CONTROLLED, zeby silnik nie nadpisywal jej kamery.",
+    "Engine.h -> enum CameraControlMode; Engine.cpp -> onTimer() (if ENGINE_ORBIT)"))
+story.append(QA("Jak rysujesz HUD (2D) na scenie 3D?",
+    "Po narysowaniu sceny 3D przelaczam projekcje na ortogonalna (Mat4::orthographic od Lukasza) i "
+    "wylaczam depth test oraz oswietlenie. Wtedy rysuje plaskie elementy (tekst, paski) we "
+    "wspolrzednych pikseli. Na koniec przywracam stan. Gra dorysowuje swoj HUD przez hudCallback.",
+    "Engine.cpp -> drawHUD(); drawString()/drawStringLarge()"))
 
 story.append(H2("Gameplay - logika i strzelanie"))
 story.append(QA("Wytlumacz krok po kroku co dzieje sie przy strzale.",
-    "1) Odswiezam kamere najnowszym yaw/pitch. 2) Biore origin (oko) i dir (kierunek patrzenia). "
-    "3) Dla kazdego celu robie raySphereIntersect i szukam najblizszego trafionego (najmniejsze t). "
-    "4) Sprawdzam, czy zadna przeszkoda nie jest blizej (obstacleBlocksRay) - jak tak, to pudlo. "
-    "5) Trafienie: +1 punkt, znika cel, bonus +2s dla reszty fali. Pudlo: -1 zycie."))
+    "1) Odswiezam kamere najnowszym yaw/pitch. 2) Biore origin (oko) i dir (kierunek). 3) Dla "
+    "kazdego celu robie raySphereIntersect i szukam najblizszego trafionego (najmniejsze t). 4) "
+    "Sprawdzam, czy zadna przeszkoda nie jest blizej (obstacleBlocksRay) - jak tak, to pudlo. 5) "
+    "Trafienie: +1 punkt, +seria, znika cel, bonus +2s dla reszty fali. Pudlo: -1 zycie.",
+    "Gameplay.cpp -> onShoot()"))
 story.append(QA("Dlaczego odswiezasz kamere przed raycastem - to byl wasz bug?",
     "Tak. Kamera (yaw/pitch) byla aktualizowana raz na klatke w onUpdate. Ale gracz mogl ruszyc "
-    "mysz i wcisnac spacje MIEDZY klatkami - wtedy raycast szedl w stary kierunek, mimo ze "
-    "celownik wskazywal nowy. Strzaly mijaly cel. Naprawa: tuz przed raycastem ustawiam kamere "
-    "aktualnymi katami."))
+    "mysz i wcisnac spacje MIEDZY klatkami - wtedy raycast szedl w stary kierunek, mimo ze celownik "
+    "wskazywal nowy. Strzaly mijaly cel. Naprawa: tuz przed raycastem ustawiam kamere aktualnymi "
+    "katami getCameraYaw/Pitch.",
+    "Gameplay.cpp -> onShoot() (setFirstPerson na poczatku)"))
+story.append(QA("Jak znajdujesz, ktory cel zostal trafiony przy wielu celach?",
+    "Przechodze petla po wszystkich celach, robie raySphereIntersect dla kazdego i zapamietuje "
+    "ten z najmniejszym t (najblizszy do kamery, czyli ten 'na pierwszym planie'). Dopiero potem "
+    "sprawdzam czy przeszkoda go nie zaslania.",
+    "Gameplay.cpp -> onShoot() (petla szukajaca closestT, hitIdx)"))
 story.append(QA("Co to jest HIT_TOLERANCE?",
-    "Mnoznik (1.4), ktorym powiekszam promien celu tylko na potrzeby trafienia. Dzieki temu mozna "
-    "celowac troche obok srodka i nadal trafic - gra jest mniej frustrujaca. Wizualnie cel zostaje "
-    "tej samej wielkosci."))
+    "Mnoznik (1.4), ktorym powiekszam promien celu TYLKO na potrzeby trafienia (raySphereIntersect "
+    "dostaje TARGET_RADIUS*HIT_TOLERANCE). Dzieki temu mozna celowac troche obok srodka i nadal "
+    "trafic - gra mniej frustruje. Wizualnie cel zostaje tej samej wielkosci.",
+    "Gameplay.cpp -> onShoot() (TARGET_RADIUS*HIT_TOLERANCE); Constants.h -> HIT_TOLERANCE"))
 story.append(QA("Jak dziala bonus +2s po trafieniu?",
     "Gdy w fali zostaja jeszcze cele, do kazdego dodaje 2 sekundy zycia - przez przesuniecie ich "
-    "spawnTime do przodu. Timeout liczy sie jako totalTime - spawnTime, wiec przesuniecie spawnTime "
-    "odracza wygasniecie. Prosty trik bez dodatkowego pola."))
+    "spawnTime do PRZODU (spawnTime += WAVE_HIT_BONUS). Timeout liczy sie jako totalTime - "
+    "spawnTime, wiec przesuniecie spawnTime odracza wygasniecie. Prosty trik bez dodatkowego pola.",
+    "Gameplay.cpp -> onShoot() (petla remaining.spawnTime += WAVE_HIT_BONUS)"))
+story.append(QA("Jak liczysz ruch gracza i czemu skalujesz przez dt?",
+    "Z kata yaw licze wektory przod (fwd) i prawo (rgt) w poziomie. WASD dodaja je do pozycji oka "
+    "skalowane przez speed = PLAYER_MOVE_SPEED * dt. Mnozenie przez dt sprawia, ze predkosc jest "
+    "stala niezaleznie od FPS (droga = predkosc * czas).",
+    "Gameplay.cpp -> onUpdate() (fwd, rgt, speed = PLAYER_MOVE_SPEED*dt)"))
+story.append(QA("Co sie dzieje gdy cel wygasnie (nie zostanie trafiony)?",
+    "W onUpdate sprawdzam totalTime - spawnTime > TARGET_LIFETIME. Jezeli tak: -1 zycie, zeruje "
+    "serie, chowam sfere (setVisible false), usuwam cel z listy. Gdy zycia spadna do 0 - koniec "
+    "gry.",
+    "Gameplay.cpp -> onUpdate() (warunek totalTime - spawnTime > TARGET_LIFETIME)"))
+story.append(QA("Jak dziala serie trafien i bonus zycia?",
+    "Kazde trafienie zwieksza streak_, pudlo/wygasniecie zeruje. Co 5 trafien z rzedu (streak_ % 5 "
+    "== 0) dodaje +1 zycie, max do 9. bestStreak_ pamieta rekord i pokazuje go na ekranie Game "
+    "Over.",
+    "Gameplay.cpp -> onShoot() (++streak_, if streak_%5==0 ++lives_)"))
 
 story.append(H2("Constants / Header / CMake"))
 story.append(QA("Dlaczego stale sa constexpr w naglowku, a nie #define?",
     "constexpr ma typ i zasieg (namespace sg), jest bezpieczniejsze niz #define (zwykla podmiana "
-    "tekstu). W C++17 constexpr w namespace jest niejawnie inline, wiec naglowek mozna wlaczac w "
-    "wielu plikach .cpp bez bledu wielokrotnej definicji."))
+    "tekstu, bez kontroli typu). W C++17 constexpr w namespace jest niejawnie inline, wiec naglowek "
+    "mozna wlaczac w wielu plikach .cpp bez bledu wielokrotnej definicji.",
+    "Constants.h -> namespace sg { constexpr ... }"))
+story.append(QA("Gdzie zmienilbym trudnosc gry?",
+    "W Constants.h - wszystkie liczby balansu sa tam: START_LIVES (zycia), TARGET_LIFETIME (czas na "
+    "cel), PLAYER_MOVE_SPEED, MAX_MOVE_RANGE (jak szybko/daleko rusza sie cel), HIT_TOLERANCE. "
+    "Zmiana jednej liczby zmienia trudnosc bez ruszania logiki.",
+    "Constants.h -> START_LIVES, TARGET_LIFETIME, itd."))
 story.append(QA("Po co rozdzielacie .h (deklaracja) od .cpp (implementacja)?",
     "Naglowek to 'kontrakt' - mowi jakie sa klasy i metody. Implementacja jest osobno. Dzieki temu "
-    "4 osoby moga pisac rozne pliki .cpp tej samej klasy rownolegle, nie wchodzac sobie w droge, a "
-    "kompilator wie z naglowka, co istnieje."))
+    "4 osoby moga pisac rozne pliki .cpp tej samej klasy ShootingGallery rownolegle, nie wchodzac "
+    "sobie w droge, a kompilator wie z naglowka, co istnieje.",
+    "ShootingGallery.h (deklaracja); Room/Obstacles/Targets/Gameplay.cpp (implementacja)"))
+story.append(QA("Jak to mozliwe, ze jedna klasa jest w 4 plikach .cpp?",
+    "C++ pozwala definiowac metody klasy w roznych plikach .cpp - wystarczy poprzedzic je nazwa "
+    "klasy (ShootingGallery::buildRoom itd.). Wszystkie .cpp wlaczaja ten sam naglowek. Linker "
+    "skleja je w jeden obiekt. Dzieki temu podzielilismy prace na 4 osoby.",
+    "ShootingGallery.h; 4 pliki .cpp z metodami ShootingGallery::..."))
 story.append(QA("Dlaczego assets kopiujecie osobnym targetem z ALL, a nie POST_BUILD?",
     "POST_BUILD odpala sie tylko gdy exe jest przebudowywane. Jak dodam nowy plik BMP, ale kod sie "
     "nie zmienil, exe nie jest linkowane i kopiowanie sie nie uruchamia. Osobny target z ALL "
-    "wykonuje sie przy kazdym buildzie, wiec nowe tekstury zawsze trafiaja obok exe."))
+    "wykonuje sie przy KAZDYM buildzie, wiec nowe tekstury zawsze trafiaja obok exe. To byl realny "
+    "problem, ktory naprawilem.",
+    "CMakeLists.txt -> add_custom_target(copy_assets ALL ...)"))
 story.append(QA("Jak CMake radzi sobie z roznymi systemami?",
-    "Sprawdzam zmienne APPLE / WIN32. Na Windows uzywam vcpkg lub MSYS2 (ucrt64), na macOS "
-    "frameworka OpenGL i Homebrew, na Linux find_package(GLUT). Dzieki temu ten sam projekt "
-    "kompiluje sie na 3 systemach."))
+    "Sprawdzam zmienne APPLE / WIN32. Na Windows uzywam vcpkg lub MSYS2 (ucrt64 - dodal kolega), na "
+    "macOS frameworka OpenGL i Homebrew, na Linux find_package(GLUT). Dzieki temu ten sam projekt "
+    "kompiluje sie na 3 systemach bez zmian w kodzie.",
+    "CMakeLists.txt -> if(APPLE)/elseif(WIN32)/else()"))
+
+story.append(H2("main.cpp"))
+story.append(QA("Co dokladnie robi main.cpp?",
+    "Tworzy Engine, wola init/setWindowParams/setGraphicsParams (okno + GL), tworzy obiekt gry "
+    "ShootingGallery (PO setGraphicsParams - bo potrzebuje kontekstu GL na tekstury), rejestruje "
+    "callbacki gry (update/shoot/hud/reset) i wola engine.run(). To cala integracja w ~20 liniach.",
+    "main.cpp -> int main()"))
+story.append(QA("Dlaczego gra jest tworzona po setGraphicsParams?",
+    "Bo konstruktor gry generuje tekstury proceduralne i wczytuje BMP, a to wymaga aktywnego "
+    "kontekstu OpenGL. Kontekst powstaje dopiero w setGraphicsParams (glutCreateWindow). Gdyby gra "
+    "powstala wczesniej, tekstury nie zostalyby utworzone.",
+    "main.cpp (kolejnosc: setGraphicsParams -> ShootingGallery game(engine))"))
 
 build("Jakub_Osoba4.pdf", "Jakub (Osoba 4) - Silnik, integracja, logika gry", story)

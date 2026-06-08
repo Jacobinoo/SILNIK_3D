@@ -128,19 +128,30 @@ def TREE(text, caption=None):
     flow.append(Spacer(1, 8))
     return flow
 
-def QA(q, a):
-    """Jedno pytanie + odpowiedz w delikatnej ramce. Trzymane razem."""
-    qpar = Paragraph("<b>P:</b> " + q, S["qq"])
-    apar = Paragraph("<b>O:</b> " + a, S["aa"])
-    tbl = Table([[qpar], [apar]], colWidths=[16.6 * cm])
-    tbl.setStyle(TableStyle([
+S["where"] = ParagraphStyle("where", fontName="Mono", fontSize=8, leading=11,
+                            textColor=colors.HexColor("#7a4a10"))
+
+def QA(q, a, where=None):
+    """Jedno pytanie + odpowiedz w delikatnej ramce. Trzymane razem.
+    where: opcjonalny string 'Plik -> funkcja()' gdzie szukac odpowiedzi."""
+    rows = [[Paragraph("<b>P:</b> " + q, S["qq"])],
+            [Paragraph("<b>O:</b> " + a, S["aa"])]]
+    if where:
+        rows.append([Paragraph("&#128269; <b>Gdzie:</b> " + esc(where), S["where"])])
+    tbl = Table(rows, colWidths=[16.6 * cm])
+    style = [
         ("BACKGROUND", (0, 0), (-1, -1), C_QBG),
         ("BOX", (0, 0), (-1, -1), 0.5, C_QBD),
         ("LEFTPADDING", (0, 0), (-1, -1), 8),
         ("RIGHTPADDING", (0, 0), (-1, -1), 8),
         ("TOPPADDING", (0, 0), (-1, -1), 5),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-    ]))
+    ]
+    if where:
+        # delikatne tlo paska "Gdzie"
+        style.append(("BACKGROUND", (0, 2), (-1, 2), colors.HexColor("#fbf3e6")))
+        style.append(("LINEABOVE", (0, 2), (-1, 2), 0.4, colors.HexColor("#e0cba8")))
+    tbl.setStyle(TableStyle(style))
     return KeepTogether([tbl, Spacer(1, 6)])
 
 # ---------- Naglowek / stopka strony ----------
