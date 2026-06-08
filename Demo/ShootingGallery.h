@@ -5,7 +5,7 @@
  * Gra rozgrywa sie w zamknietym pokoju z roznymi przeszkodami (cylindry,
  * stozki, skrzynie). Pojawiaja sie fale 1-3 ruchomych celow ktore trzeba
  * trafiac w okreslonym czasie. Implementacja klasy podzielona na 4 pliki
- * .cpp (Room.cpp, Obstacles.cpp, Targets.cpp, Gameplay.cpp - patrz OSOBY.md).
+ * .cpp (Room.cpp, Obstacles.cpp, Targets.cpp, Gameplay.cpp).
  */
 #ifndef SHOOTING_GALLERY_H
 #define SHOOTING_GALLERY_H

@@ -12,16 +12,17 @@ OUTPUT_LANGUAGE        = Polish
 INPUT_ENCODING         = UTF-8
 
 # wszystkie pliki silnika + gry + main + README
+# OSOBY.md NIE jest tutaj wlaczane - to plik wewnetrzny tylko dla zespolu.
 INPUT                  = main.cpp \
                          Engine \
                          Demo \
-                         README.md \
-                         OSOBY.md
+                         README.md
 RECURSIVE              = YES
 FILE_PATTERNS          = *.cpp *.h *.md
 USE_MDFILE_AS_MAINPAGE = README.md
 
-EXCLUDE_PATTERNS       = */build/* */build_check/* */assets/*
+EXCLUDE                = OSOBY.md
+EXCLUDE_PATTERNS       = */build/* */build_check/* */assets/* OSOBY.md
 
 # wyciagaj wszystko, nawet bez komentarzy - inaczej nie zobaczymy wszystkich klas
 EXTRACT_ALL            = YES
