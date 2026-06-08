@@ -11,3 +11,5 @@ Makefile
 *.dll
 
 /docs
+/Silnik3D
+**/.gitkeep

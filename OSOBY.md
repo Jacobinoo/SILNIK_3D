@@ -84,6 +84,10 @@ Projekt **Silnik 3D + Strzelnica** podzielony został tak, aby każda z 4 osób 
   - `currentTargetPos()`: pozycja celu z bobem pionowym i ruchem liniowym (ping-pong sin)
   - `spawnWave()`: losowanie rozmiaru fali (1–3 cele), tryb ruchu (30% statyczny, 40% oś X, 30% oś Z) z losową fazą, walidacja pozycji (min. dystans od gracza, nie wewnątrz przeszkody, nie za blisko innych celów; do 60 prób)
 
+### Assets graficzne
+- **`assets/textures/*.bmp`** — pliki BMP do podłogi, ścian, celu, stożków, skrzyń (właściciel klasy `Texture` dobiera/konwertuje tekstury)
+- **`assets/textures/README.md`** — instrukcja dla zespołu jak dodawać własne tekstury (źródła CC0, konwersja PNG→BMP, wymagania formatu)
+
 ---
 
 ## Osoba 4 — Rdzeń silnika, integracja, logika gry, HUD
@@ -101,6 +105,12 @@ Projekt **Silnik 3D + Strzelnica** podzielony został tak, aby każda z 4 osób 
 
 - **`main.cpp`** — punkt wejścia
   - Tworzy `Engine`, `ShootingGallery`, podłącza callbacki, woła `engine.run()`
+
+### Infrastruktura / build
+- **`CMakeLists.txt`** — konfiguracja CMake (źródła, biblioteki dla Windows/macOS/Linux, kopiowanie assets, freeglut.dll)
+- **`.gitignore`** — wykluczenia git (build/, docs/, artefakty CMake, Silnik3D, .gitkeep)
+- **`Doxyfile`** — konfiguracja Doxygen do generowania dokumentacji projektu (komentarze pisze każda osoba w swoich plikach, ale sam konfig jest u Osoby 4)
+- **`README.md`** — dokumentacja projektu (instrukcje budowania, sterowanie, struktura, jak generować Doxygen, jak dodawać tekstury)
 
 ### Demo
 - **`Demo/ShootingGallery.h`** — deklaracja głównej klasy gry (struktury `Target`, `ObstacleCyl`, `ObstacleCone`, `ObstacleBox`; wszystkie pola, metody publiczne i prywatne)
@@ -136,12 +146,16 @@ Osoba 4 ma więcej z uwagi na rozległy HUD (~150 linii) i integrację (konstruk
 
 ---
 
-## Struktura plików
+## Struktura plików — pełne przypisanie
 
 ```
 pgk/
 ├── main.cpp                                  ← Osoba 4
 ├── CMakeLists.txt                            ← Osoba 4
+├── .gitignore                                ← Osoba 4
+├── Doxyfile                                  ← Osoba 4
+├── README.md                                 ← Osoba 4
+├── OSOBY.md                                  ← (meta — dla całego zespołu)
 ├── Engine/
 │   ├── Math3D.h/cpp                          ← Osoba 1
 │   ├── SceneNode.h/cpp                       ← Osoba 1
@@ -157,5 +171,9 @@ pgk/
 │   ├── Obstacles.cpp                         ← Osoba 2
 │   ├── Targets.cpp                           ← Osoba 3
 │   └── Gameplay.cpp                          ← Osoba 4
-└── assets/textures/*.bmp                     ← wspólne assety
+└── assets/textures/
+    ├── README.md                             ← Osoba 3
+    └── *.bmp (5 plików)                      ← Osoba 3
 ```
+
+**Notka**: każda osoba pisze komentarze Doxygen w swoich plikach `.h` — `Doxyfile` to wspólny konfig (utrzymywany przez Osobę 4 jako część build/infrastructure).
