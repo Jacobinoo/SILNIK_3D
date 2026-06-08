@@ -30,6 +30,31 @@ cmake --build build --parallel 4
 
 ---
 
+## Dokumentacja Doxygen
+
+W projekcie sa komentarze Doxygen na wszystkich publicznych klasach i metodach
+w headerach silnika (`Engine/*.h`) oraz w glownej klasie gry (`Demo/ShootingGallery.h`).
+Zeby wygenerowac dokumentacje HTML:
+
+### Wymagania
+- [Doxygen](https://www.doxygen.nl/download.html) (na Windows MSI installer)
+- Opcjonalnie [Graphviz](https://graphviz.org/download/) dla diagramow klas
+
+### Generowanie
+```powershell
+doxygen Doxyfile
+```
+
+Wygenerowana dokumentacja: `docs/html/index.html`
+
+Konfiguracja w `Doxyfile`:
+- `OUTPUT_LANGUAGE = Polish` - polskie nazwy sekcji
+- `EXTRACT_ALL = YES` - wyciaga nawet niedokumentowane klasy (pokazuje strukture)
+- `EXTRACT_PRIVATE = YES` - widoczne pola prywatne (przydaje sie do nauki)
+- `USE_MDFILE_AS_MAINPAGE = README.md` - ten plik jako strona glowna
+
+---
+
 ## Demo: Strzelnica 3D
 
 Pomarańczowy obracający się cel pojawia się losowo w przestrzeni przed graczem. Trafienie spacją = +1 punkt. Pudło lub niezestrzelenie w czasie 5 sekund = -1 życie. Start: 5 żyć.

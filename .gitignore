@@ -9,3 +9,5 @@ Makefile
 *.obj
 *.exe
 *.dll
+
+/docs
