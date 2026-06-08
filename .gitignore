@@ -13,3 +13,5 @@ Makefile
 /docs
 /Silnik3D
 **/.gitkeep
+
+obrona/__pycache__/
