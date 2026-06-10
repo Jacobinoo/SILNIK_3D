@@ -1,0 +1,75 @@
+# Doxyfile dla projektu Silnik3D + Strzelnica
+# zeby wygenerowac docs:  doxygen Doxyfile
+# wyjscie ladne ladowane przy docs/html/index.html
+
+PROJECT_NAME           = "Silnik3D - Strzelnica"
+PROJECT_BRIEF          = "Wlasny silnik 3D na FreeGLUT + gra demo strzelnica FPP"
+PROJECT_NUMBER         = "1.0"
+
+OUTPUT_DIRECTORY       = docs
+CREATE_SUBDIRS         = NO
+OUTPUT_LANGUAGE        = Polish
+INPUT_ENCODING         = UTF-8
+
+# wszystkie pliki silnika + gry + main + README
+# OSOBY.md NIE jest tutaj wlaczane - to plik wewnetrzny tylko dla zespolu.
+INPUT                  = main.cpp \
+                         Engine \
+                         Demo \
+                         README.md
+RECURSIVE              = YES
+FILE_PATTERNS          = *.cpp *.h *.md
+USE_MDFILE_AS_MAINPAGE = README.md
+
+EXCLUDE                = OSOBY.md
+EXCLUDE_PATTERNS       = */build/* */build_check/* */assets/* OSOBY.md
+
+# wyciagaj wszystko, nawet bez komentarzy - inaczej nie zobaczymy wszystkich klas
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = YES
+HIDE_UNDOC_MEMBERS     = NO
+HIDE_UNDOC_CLASSES     = NO
+
+# /// na poczatku traktuj jako @brief
+JAVADOC_AUTOBRIEF      = YES
+QT_AUTOBRIEF           = YES
+MULTILINE_CPP_IS_BRIEF = NO
+
+# C++ styl
+OPTIMIZE_OUTPUT_FOR_C  = NO
+BUILTIN_STL_SUPPORT    = YES
+INLINE_SIMPLE_STRUCTS  = YES
+
+# generuj tylko HTML (LaTeX/PDF nie potrzebny w naszym projekcie)
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+HTML_FILE_EXTENSION    = .html
+HTML_COLORSTYLE        = LIGHT
+GENERATE_TREEVIEW      = YES
+DISABLE_INDEX          = NO
+
+GENERATE_LATEX         = NO
+GENERATE_XML           = NO
+
+# diagramy klas (wymagaja graphviz - jak nie ma to po prostu pominie)
+HAVE_DOT               = NO
+CLASS_DIAGRAMS         = YES
+COLLABORATION_GRAPH    = NO
+
+# nie spamuj warningami o niedokumentowanych elementach
+QUIET                  = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_DOC_ERROR      = YES
+
+# zachowuj sie sensownie z naszymi includami
+SEARCH_INCLUDES        = YES
+INCLUDE_PATH           = . Engine
+
+# nazwy sekcji ladniej wygladaja
+ALPHABETICAL_INDEX     = YES
+SORT_MEMBERS_CTORS_1ST = YES
+SHOW_INCLUDE_FILES     = YES
+SHOW_USED_FILES        = YES
+SHOW_FILES             = YES

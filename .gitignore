@@ -9,3 +9,9 @@ Makefile
 *.obj
 *.exe
 *.dll
+
+/docs
+/Silnik3D
+**/.gitkeep
+
+obrona/__pycache__/
