@@ -4,6 +4,15 @@ project(Silnik3D)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Szukamy pakietów. Dzięki integracji vcpkg (toolchain) Windows 
+# bez problemu sam znajdzie te paczki tam, gdzie zostały zainstalowane.
+find_package(OpenGL REQUIRED)
+
+if(WIN32)
+    # Szukamy freeglut pobranego przez vcpkg
+    find_package(freeglut CONFIG REQUIRED)
+endif()
+
 # macOS (Homebrew)
 if(APPLE)
     include_directories(/opt/homebrew/include)
@@ -11,15 +20,6 @@ if(APPLE)
     include_directories(/usr/local/include)
     link_directories(/usr/local/lib)
 endif()
-
-# Windows: vcpkg
-if(WIN32)
-    set(VCPKG_DIR "C:/vcpkg/installed/x64-windows")
-    include_directories("${VCPKG_DIR}/include")
-    link_directories("${VCPKG_DIR}/lib")
-endif()
-
-find_package(OpenGL REQUIRED)
 
 set(ENGINE_SOURCES
     Engine/Engine.cpp
@@ -47,13 +47,12 @@ set(SOURCES
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 # Ścieżki include:
-#   ${CMAKE_SOURCE_DIR}        -> main.cpp używa #include "Engine/Engine.h"
-#   ${CMAKE_SOURCE_DIR}/Engine -> pliki silnika używają #include "Math3D.h" etc.
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/Engine
 )
 
+# LINKOWANIE Z BIBLIOTEKAMI
 if(APPLE)
     target_link_libraries(${PROJECT_NAME} PRIVATE "-framework OpenGL" glut)
 elseif(WIN32)
@@ -73,15 +72,11 @@ elseif(WIN32)
             )
         endif()
     else()
+        # WŁAŚCIWE PODEJŚCIE DLA VCPKG
+        # Łączymy projekt z celem freeglut::freeglut. CMake załatwia całą resztę.
         target_link_libraries(${PROJECT_NAME} PRIVATE
             OpenGL::GL
-            "${VCPKG_DIR}/lib/freeglut.lib"
-            "${VCPKG_DIR}/lib/GlU32.Lib"
-        )
-        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${VCPKG_DIR}/bin/freeglut.dll"
-                $<TARGET_FILE_DIR:${PROJECT_NAME}>
+            FreeGLUT::freeglut
         )
     endif()
 else()
@@ -90,10 +85,6 @@ else()
 endif()
 
 # Kopiowanie folderu assets/ (BMP textures) obok pliku wykonywalnego.
-# Uzywamy osobnego custom target z ALL - dzieki temu komenda kopiowania
-# uruchamia sie ZAWSZE przy `cmake --build`, niezaleznie od tego czy
-# Silnik3D.exe byl przebudowywany. Dorzucenie nowego pliku BMP do
-# assets/textures/ wystarczy potwierdzic przez kolejny `cmake --build build`.
 if(EXISTS "${CMAKE_SOURCE_DIR}/assets")
     add_custom_target(copy_assets ALL
         COMMAND ${CMAKE_COMMAND} -E copy_directory
